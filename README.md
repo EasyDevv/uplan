@@ -15,8 +15,8 @@
 uPlan automates the development planning process to generate consistent and structured project documentation.
 
 <p align="center">
-  <a href="https://youtu.be/2qfJAx9PdJI" target="_blank">
-        <img src="http://img.youtube.com/vi/2qfJAx9PdJI/0.jpg" alt="uplan_usage">
+  <a href="https://youtu.be/9bG2-Ky54Ko" target="_blank">
+        <img src="http://img.youtube.com/vi/9bG2-Ky54Ko/0.jpg" alt="uplan_usage">
     </a>
 </p>
 
