@@ -166,7 +166,7 @@ def get_todo(
 
         json_dict = add_completed_status(json_block)
         with open(output_folder / "todo.json", "w", encoding="utf-8") as f:
-            json.dump(json_dict, f, indent=2)
+            json.dump(json_dict, f, indent=2, ensure_ascii=False)
         return response
     except Exception as e:
         print(f"[red]Error processing todo: {str(e)}[/red]")
