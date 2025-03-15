@@ -1,7 +1,7 @@
 [prompt]
 role = "You are a good code architect and have a good understanding of the development process."
 goal = "Create a to-do list for development."
-preferred_language = "English"
+preferred_language = "Korean"
 instructions = [
     "Review what's already entered in <plan>.",
     "<select> can contain multiple contents.",
