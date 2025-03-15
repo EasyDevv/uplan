@@ -1,0 +1,40 @@
+[prompt]
+role = "You are a good code architect and have a good understanding of the development process."
+goal = "Create a to-do list for development."
+preferred_language = "English"
+instructions = [
+    "Review what's already entered in <plan>.",
+    "<select> can contain multiple contents.",
+    "Fill in the <select> parts to create the final deliverable.",
+]
+output_structure = [
+    "Write it in JSON format inside a ```json ``` codeblock.",
+    "Key values use lowercase",
+]
+
+# ======================================
+# To-do Template
+# ======================================
+[template.environment_setup]
+frameworks = ["<select> (예: docker, virtual machine, cloud provider)"]
+tasks = ["<select> (예: 가상 환경 생성, 필요한 Python 패키지 설치, Django 프로젝트 초기화)"]
+
+[template.frontend]
+frameworks = ["<select> (예: react, vue, angular)"]
+tasks = ["<select> (예: 로그인 페이지 UI 디자인, 가입 페이지 UI 디자인, 사용자 입력 유효성 검사 로직 구현)"]
+
+[template.backend]
+frameworks = ["<select> (예: fastapi, express, django)"]
+tasks = ["<select> (예: API 엔드포인트 개발, 인증/인가 로직 구현, 비즈니스 로직 구현, 데이터 유효성 검증)"]
+
+[template.database]
+frameworks = ["<select> (예: postgresql, mysql, mongodb)"]
+tasks = ["<select> (예: 데이터베이스 스키마 설계, 테이블 관계 정의, 인덱스 설정, 데이터 마이그레이션 스크립트 작성)"]
+
+[template.testing]
+frameworks = ["<select> (예: jest, react testing library, cypress)"]
+tasks = ["<select> (예: 사용자 입력 유효성 검사 로직, 백엔드 API 통합, API 요청 및 응답 처리 로직)"]
+
+[template.deployment]
+frameworks = ["<select> (예: github actions, jenkins, aws codepipeline)"]
+tasks = ["<select> (예: CI/CD 파이프라인 설정, 배포 스크립트 작성)"]

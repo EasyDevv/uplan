@@ -1,0 +1,50 @@
+[prompt]
+role = "You are a good code architect and have a good understanding of the development process."
+goal = "Create a to-do list for development."
+preferred_language = "English"
+instructions = [
+    "Review what's already entered in <plan>.",
+    "<select> can contain multiple contents.",
+    "Fill in the <select> parts to create the final deliverable.",
+]
+output_structure = [
+    "Write it in JSON format inside a ```json ``` codeblock.",
+    "Key values use lowercase",
+]
+
+# ======================================
+# To-do
+# ======================================
+[template.environment_setup]
+frameworks = ["<select> (e.g., docker, virtual machine, cloud provider)"]
+tasks = [
+    "<select> (e.g., create virtual environment, install required Python packages, initialize Django project)",
+]
+
+[template.frontend]
+frameworks = ["<select> (e.g., react, vue, angular)"]
+tasks = [
+    "<select> (e.g., design login page UI, design signup page UI, implement user input validation logic)",
+]
+
+[template.backend]
+frameworks = ["<select> (e.g., fastapi, express, django)"]
+tasks = [
+    "<select> (e.g., develop API endpoints, implement authentication/authorization logic, implement business logic, validate data)",
+]
+
+[template.database]
+frameworks = ["<select> (e.g., postgresql, mysql, mongodb)"]
+tasks = [
+    "<select> (e.g., design database schema, define table relationships, set up indexes, write data migration scripts)",
+]
+
+[template.testing]
+frameworks = ["<select> (e.g., jest, react testing library, cypress)"]
+tasks = [
+    "<select> (e.g., user input validation logic, backend API integration, API request and response handling logic)",
+]
+
+[template.deployment]
+frameworks = ["<select> (e.g., github actions, jenkins, aws codepipeline)"]
+tasks = ["<select> (e.g., set up CI/CD pipeline, write deployment scripts)"]

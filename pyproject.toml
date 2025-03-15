@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uplan"
+authors = [{ name = "EasyDev", email = "easydevv@gmail.com" }]
+description = "📋uPlan - AI-powered development planning automation tool that generates structured project documents and to-do lists. Streamlines your planning workflow with template-based questions, efficient AI usage, and TOML-formatted outputs. Supports multiple AI models and offers customizable templates for development planning."
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["litellm>=1.63.6", "rich>=13.9.4", "tomli-w>=1.2.0"]
+dynamic = ["version"]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[project.urls]
+source = "https://github.com/easydevv/uplan"
+
+[project.scripts]
+uplan = "uplan.main:main"
+
+[tool.setuptools]
+packages = ["uplan"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
