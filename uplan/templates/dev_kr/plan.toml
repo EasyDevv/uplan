@@ -1,0 +1,88 @@
+[prompt]
+role = "You are a good code architect and have a good understanding of the development process."
+goal = "Create a plan for development."
+preferred_language = "Korean"
+instructions = [
+    "Review the <user_input> section in advance and reflect it in the <template>.",
+    "Fill in the only <select> entries.",
+    "<select> can contain multiple contents.",
+]
+
+output_structure = [
+    "Write it in JSON format inside a ```json ``` codeblock.",
+    "Key values use lowercase",
+]
+
+# ======================================
+# Questions
+# ======================================
+[template.project_basics.overview]
+ask = "프로젝트 개요를 설명해주세요"
+description = "만들고 있는 것(앱, 서비스 등), 대상 플랫폼(웹, 모바일, 데스크톱 등), 주요 사용자 등"
+required = true
+
+[template.project_basics.core_functionality]
+ask = "프로젝트의 핵심 기능을 설명해주세요"
+description = "구현 방법, 사용자 인터페이스, 테스트 시나리오 등"
+required = true
+
+[template.tech_stack.language]
+ask = "개발 언어를 입력해주세요"
+description = "Python, TypeScript, Java, Kotlin 등 (다중 선택 가능)"
+required = false
+
+[template.tech_stack.package_manager]
+ask = "프로젝트 패키지 관리자를 입력해주세요"
+description = "npm, pip, bun, uv 등"
+required = true
+
+[template.tech_stack.frontend]
+ask = "프론트엔드 프레임워크를 입력해주세요"
+description = "React, Angular, Vue.js 등 (필요 없는 경우 'None' 입력)"
+required = true
+
+[template.tech_stack.backend]
+ask = "백엔드 프레임워크를 입력해주세요"
+description = "Django, Spring Boot, Express 등 (필요 없는 경우 'None' 입력)"
+required = true
+
+[template.tech_stack.database]
+ask = "데이터베이스를 입력해주세요"
+description = "MySQL, PostgreSQL, MongoDB 등 (필요 없는 경우 'None' 입력)"
+required = true
+
+[template.tech_stack.test_framework]
+ask = "테스트 프레임워크를 입력해주세요"
+description = "Jest, Mocha, JUnit 등 (필요 없는 경우 'None' 입력)"
+
+[template.requirements.functional]
+ask = "프로젝트의 기능적 요구사항을 나열해주세요"
+description = "각 기능의 이름과 세부 사항을 포함합니다 (예: 사용자 관리 - 가입, 로그인 등)"
+
+[template.requirements.non_functional]
+ask = "프로젝트의 비기능적 요구사항을 나열해주세요"
+description = "성능(응답 시간, 처리량 등), 보안(인증, 암호화 등), 확장성(사용자 수 증가 등)"
+
+[template.design.database_schema]
+ask = "데이터베이스 스키마를 설명해주세요"
+description = "주요 테이블과 필드 (예: 사용자 - id, username 등), 테이블 간의 관계 등 (필요 없는 경우 'None' 입력)"
+
+[template.design.user_interface]
+ask = "사용자 인터페이스의 세부 사항을 입력해주세요"
+description = "디자인 원칙 (직관성, 단순성 등), 지원되는 플랫폼 (모바일, PC 등)"
+
+[template.design.api]
+ask = "API 인터페이스의 세부 사항을 입력해주세요"
+description = "API 유형 (REST, GraphQL 등), 주요 엔드포인트 (예: /users, /products 등)"
+
+[template.implementation.testing]
+ask = "테스트 계획을 설명해주세요"
+description = "단위 테스트 (예: 사용자 인증), 통합 테스트 (예: 로그인 -> 메시지 전송), 기타 테스트 유형 등"
+
+[template.implementation.deployment]
+ask = "배포 계획을 입력해주세요"
+description = "배포 환경 (클라우드 공급자, 서버 등), CI/CD 설정 등"
+
+[template.implementation.dependencies]
+ask = "외부 종속성을 입력해주세요"
+description = "사용할 라이브러리, API, 서비스 (예: Firebase, AWS SDK 등)"

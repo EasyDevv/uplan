@@ -1,0 +1,88 @@
+[prompt]
+role = "You are a good code architect and have a good understanding of the development process."
+goal = "Create a plan for development."
+preferred_language = "English"
+instructions = [
+    "Review what's already entered in <template>.",
+    "<select> can contain multiple contents.",
+    "Fill in the <select> parts to create the final deliverable.",
+]
+output_structure = [
+    "Write it in JSON format inside a ```json ``` codeblock.",
+    "Key values use lowercase",
+]
+
+# ======================================
+# Questions
+# ======================================
+[template.project_basics.overview]
+ask = "Please describe the overview of the project"
+description = "What you are making (app, service, etc.), target platform (web, mobile, desktop, etc.), main users, etc."
+required = true
+
+[template.project_basics.core_functionality]
+ask = "Please describe the core functionality of the project"
+description = "Implementation methods, user interface, test scenarios, etc."
+required = true
+
+[template.tech_stack.language]
+ask = "Please enter the development language"
+description = "Python, TypeScript, Java, Kotlin, etc. (multiple selections possible)"
+required = false
+
+[template.tech_stack.package_manager]
+ask = "Please enter the project package manager"
+description = "npm, pip, bun, uv, etc."
+required = true
+
+[template.tech_stack.frontend]
+ask = "Please enter the frontend framework"
+description = "React, Angular, Vue.js, etc. (enter 'None' if not needed)"
+required = true
+
+[template.tech_stack.backend]
+ask = "Please enter the backend framework"
+description = "Django, Spring Boot, Express, etc. (enter 'None' if not needed)"
+required = true
+
+[template.tech_stack.database]
+ask = "Please enter the database"
+description = "MySQL, PostgreSQL, MongoDB, etc. (enter 'None' if not needed)"
+required = true
+
+[template.tech_stack.test_framework]
+ask = "Please enter the test framework"
+description = "Jest, Mocha, JUnit, etc. (enter 'None' if not needed)"
+required = true
+
+[template.requirements.functional]
+ask = "Please list the functional requirements of the project"
+description = "Include the name and details of each function (e.g., User Management - Sign Up, Login, etc.)"
+
+[template.requirements.non_functional]
+ask = "Please list the non-functional requirements of the project"
+description = "Performance (response time, throughput, etc.), Security (authentication, encryption, etc.), Scalability (increase in user numbers, etc.)"
+
+[template.design.database_schema]
+ask = "Please describe the database schema"
+description = "Main tables and fields (e.g., User - id, username, etc.), relationships between tables, etc. (enter 'None' if not needed)"
+
+[template.design.user_interface]
+ask = "Please enter the details of the user interface"
+description = "Design principles (intuitiveness, simplicity, etc.), supported platforms (mobile, PC, etc.)"
+
+[template.design.api]
+ask = "Please enter the details of the API interface"
+description = "API type (REST, GraphQL, etc.), main endpoints (e.g., /users, /products, etc.)"
+
+[template.implementation.testing]
+ask = "Please describe the test plan"
+description = "Unit tests (e.g., user authentication), Integration tests (e.g., Login -> Message Sending), other test types, etc."
+
+[template.implementation.deployment]
+ask = "Please enter the deployment plan"
+description = "Deployment environment (cloud provider, server, etc.), CI/CD settings, etc."
+
+[template.implementation.dependencies]
+ask = "Please enter the external dependencies"
+description = "Libraries, APIs, services to be used (e.g., Firebase, AWS SDK, etc.)"
