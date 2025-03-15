@@ -6,7 +6,6 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/uplan.svg)](https://pypi.org/project/uplan/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/uplan.svg)](https://pypi.org/project/uplan/)
-[![License](https://img.shields.io/github/license/username/uplan.svg)](https://github.com/easydevv/uplan/blob/main/LICENSE)
 
 #### English | [한국어](docs/README_KR.md)
 </div>
@@ -14,6 +13,12 @@
 ## 📖 Introduction
 
 uPlan automates the development planning process to generate consistent and structured project documentation.
+
+<p align="center">
+  <a href="https://youtu.be/2qfJAx9PdJI" target="_blank">
+        <img src="http://img.youtube.com/vi/2qfJAx9PdJI/0.jpg" alt="uplan_usage">
+    </a>
+</p>
 
 **Problems with existing AI chat-based planning:**
 - Questions and methods vary with each session
@@ -37,7 +42,7 @@ uPlan automates the development planning process to generate consistent and stru
 uPlan operates through the following workflow:
 
 <p align="center">
-  <img src="docs/assets/uplan-workflow.png" alt="uplan Workflow" width="700">
+  <img src="docs/assets/workflow.png" alt="uplan Workflow" width="700">
 </p>
 
 1. **Structured Question Generation** (Code): Creates questions based on user-provided templates

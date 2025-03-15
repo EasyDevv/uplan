@@ -13,6 +13,12 @@
 
 ## 📖 소개
 
+<p align="center">
+  <a href="https://youtu.be/nWtd01v2w9w" target="_blank">
+        <img src="http://img.youtube.com/vi/nWtd01v2w9w/0.jpg" alt="uplan_usage">
+    </a>
+</p>
+
 uPlan은 개발 계획 수립 과정을 자동화하여 일관되고 구조화된 프로젝트 문서를 생성합니다. 
 
 **기존 AI 채팅 기반 계획 수립의 문제점:**
@@ -37,7 +43,7 @@ uPlan은 개발 계획 수립 과정을 자동화하여 일관되고 구조화�
 uPlan은 다음과 같은 워크플로우를 통해 작동합니다:
 
 <p align="center">
-  <img src="docs/assets/uplan-workflow.png" alt="uplan 작동 방식" width="700">
+  <img src="assets/workflow.png" alt="uplan Workflow" width="700">
 </p>
 
 1. **구조화된 질문 생성** (코드): 사용자 제공 템플릿 기반 질문 구성

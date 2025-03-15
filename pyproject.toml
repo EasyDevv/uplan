@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "uplan"
 authors = [{ name = "EasyDev", email = "easydevv@gmail.com" }]
-description = "📋uPlan - AI-powered development planning automation tool that generates structured project documents and to-do lists. Streamlines your planning workflow with template-based questions, efficient AI usage, and TOML-formatted outputs. Supports multiple AI models and offers customizable templates for development planning."
+description = "ㅓ"
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
