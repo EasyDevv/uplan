@@ -37,7 +37,7 @@ class QuestionBuilder:
             return True, answer
 
 
-def collect_answers(
+def collect_answers_cli(
     template: Dict[str, Any],
     default_value: str = "<select>",
     question_builder: Optional[QuestionBuilder] = None,

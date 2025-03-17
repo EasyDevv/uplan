@@ -15,10 +15,14 @@ def extract_code_block(doc: str) -> str | None:
     Returns:
         str | None: The extracted content (trimmed) or None if no code block is found.
     """
-    pattern = r"```(?:\w+\n)?(.*?)```"
-    match = re.search(pattern, doc, re.DOTALL)
-    if match:
-        return match.group(1).strip()
+    patterns = [
+        r"```(?:\w+\n)?(.*?)```",  # Matches content between triple backticks
+        r"```(.+)$",  # Matches content after triple backticks
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, doc, re.DOTALL)
+        if match:
+            return match.group(1).strip()
     return None
 
 

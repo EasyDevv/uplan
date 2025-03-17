@@ -4,7 +4,6 @@ Module for processing and generating development plans and to-do lists using LLM
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Tuple
 
 import litellm
 import tomli_w
@@ -12,7 +11,7 @@ import tomllib
 from rich import print
 
 from uplan.models.todo import TodoModel
-from uplan.question import collect_answers, select_option
+from uplan.question import collect_answers_cli, select_option
 from uplan.utils.data import add_completed_status, toml_to_markdown
 from uplan.utils.display import (
     display_json_panel,
@@ -20,7 +19,7 @@ from uplan.utils.display import (
     display_text_panel,
 )
 from uplan.utils.file import open_file
-from uplan.utils.text import dict_to_xml, extract_code_block
+from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 
 
 def run(
@@ -29,7 +28,7 @@ def run(
     output_file: str,
     validate_model: object = None,
     max_retries: int = 5,
-    prompt: Dict = None,
+    prompt: dict = None,
     model: str = None,
     stream: bool = True,
     debug: bool = False,
@@ -38,6 +37,7 @@ def run(
     display_json_panel(prompt, title=prompt_title, border_style="green")
 
     optimized_prompt = dict_to_xml(prompt)
+    optimized_prompt = optimize_for_prompt(optimized_prompt)
 
     if debug:
         display_text_panel(optimized_prompt, title=prompt_title, border_style="green")
@@ -96,25 +96,27 @@ def get_plan(
     output_folder: Path,
     model: str,
     retry: int,
-    **litellm_kwargs: Any,
-) -> Dict:
-    """Execute plan generation process."""
-    try:
-        with open(input_folder / "plan.toml", "rb") as f:
-            questions = tomllib.load(f)
-    except FileNotFoundError:
-        raise RuntimeError(f"Failed to read plan.toml in {input_folder}")
+    answers_data: dict,
+    **litellm_kwargs,
+) -> dict:
+    """
+    Execute plan generation process.
 
-    template = questions.get("template")
-    if template is None:
-        raise RuntimeError("No template found in plan.toml")
+    Args:
+        input_folder: Path to input folder containing plan.toml
+        output_folder: Path where generated plan will be saved
+        model: Name of the LLM model to use
+        retry: Number of retry attempts
+        answers: Pre-collected answers (for non-CLI usage)
+        **litellm_kwargs: Additional arguments for litellm
 
-    template, only_answers = collect_answers(template)
-    questions.update({"user_input": only_answers, "template": template})
+    Returns:
+        dict: Response containing status and generated plan data
+    """
 
     try:
         response = run(
-            prompt=questions,
+            prompt=answers_data,
             model=model,
             prompt_title="Plan Prompt",
             extracted_title="Extracted Plan Data",
@@ -133,18 +135,10 @@ def get_todo(
     output_folder: Path,
     model: str,
     retry: int,
-    **litellm_kwargs: Any,
-) -> Dict:
+    todo: dict,
+    **litellm_kwargs,
+) -> dict:
     """Execute todo generation process."""
-    try:
-        with open(input_folder / "todo.toml", "rb") as f:
-            todo = tomllib.load(f)
-        with open(output_folder / "plan.toml", "rb") as f:
-            plan = tomllib.load(f)
-    except FileNotFoundError:
-        raise RuntimeError(f"Failed to read required TOML files in {input_folder}")
-
-    todo.update({"plan": plan})
 
     try:
         response = run(
@@ -173,23 +167,79 @@ def get_todo(
         return {"status": "error", "message": str(e)}
 
 
+def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
+    """
+    Read and merge todo and plan TOML files.
+
+    Args:
+        input_folder: Path to the input folder containing todo.toml.
+        output_folder: Path to the output folder containing plan.toml.
+
+    Returns:
+        dict: Merged todo dictionary with plan data.
+
+    Raises:
+        RuntimeError: If required TOML files are not found.
+    """
+    try:
+        with open(input_folder / "todo.toml", "rb") as f:
+            todo = tomllib.load(f)
+        with open(output_folder / "plan.toml", "rb") as f:
+            plan = tomllib.load(f)
+    except FileNotFoundError:
+        raise RuntimeError(f"Failed to read required TOML files in {input_folder}")
+
+    todo.update({"plan": plan})
+    return todo
+
+
+def prepare_answers_cli(input_folder: Path) -> tuple[dict, dict]:
+    """
+    Read and validate the plan template from input folder.
+    Args:
+        input_folder: Path to the input folder containing plan.toml
+    Returns:
+        tuple[dict, dict]: Tuple containing (questions, template)
+            where questions is the full questions dict and template is the template section
+    Raises:
+        RuntimeError: If plan.toml is missing or template section is not found
+    """
+    try:
+        with open(input_folder / "plan.toml", "rb") as f:
+            answers_data = tomllib.load(f)
+    except FileNotFoundError:
+        raise RuntimeError(f"Failed to read plan.toml in {input_folder}")
+
+    template = answers_data.get("template")
+    if template is None:
+        raise RuntimeError("No template found in plan.toml")
+
+    template, only_answers = collect_answers_cli(template)
+
+    answers_data.update({"user_input": only_answers, "template": template})
+
+    return answers_data
+
+
 def get_all(
     input_folder: Path,
     output_folder: Path,
     model: str,
     retry: int,
-    **litellm_kwargs: Any,
-) -> Tuple[Dict, Dict]:
+    **litellm_kwargs,
+) -> tuple[dict, dict]:
     """Generate both plan and todo documents in sequence."""
     # Generate plan first
+    answers_data = prepare_answers_cli(input_folder)
     plan_response = get_plan(
-        input_folder, output_folder, model, retry, **litellm_kwargs
+        input_folder, output_folder, model, retry, answers_data, **litellm_kwargs
     )
     if plan_response.get("status") in ["exit", "error"]:
         return plan_response, {"status": "skipped"}
 
     # Generate todo using the created plan
+    todo = prepare_todo(input_folder, output_folder)
     todo_response = get_todo(
-        input_folder, output_folder, model, retry, **litellm_kwargs
+        input_folder, output_folder, model, retry, todo, **litellm_kwargs
     )
     return plan_response, todo_response

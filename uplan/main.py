@@ -1,4 +1,4 @@
-import argparse
+import click
 from pathlib import Path
 
 from rich import print
@@ -22,85 +22,105 @@ def setup_folders(
     return input_folder, output_folder
 
 
-def setup_base_parser() -> argparse.ArgumentParser:
-    """Create base parser with common arguments."""
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument(
-        "--model", type=str, default="ollama/qwq", help="LLM model to use"
-    )
-    parser.add_argument(
-        "--retry", type=int, default=5, help="Max retries for LLM requests"
-    )
-    parser.add_argument("--category", type=str, default="dev", help="Template category")
-    parser.add_argument("--input", type=str, default="./input", help="Input folder")
-    parser.add_argument("--output", type=str, default="./output", help="Output folder")
-    return parser
+def common_options(f):
+    """Common click options for all commands."""
+    options = [
+        click.option("--model", default="ollama/qwq", help="LLM model to use"),
+        click.option(
+            "--retry", default=5, type=int, help="Max retries for LLM requests"
+        ),
+        click.option("--category", default="dev", help="Template category"),
+        click.option("--input", default="./input", help="Input folder"),
+        click.option("--output", default="./output", help="Output folder"),
+    ]
+    for option in reversed(options):
+        f = option(f)
+    return f
 
 
-def main():
-    base_parser = setup_base_parser()
-    parser = argparse.ArgumentParser(
-        description="Plan and Todo Manager", parents=[base_parser]
-    )
-
-    subparsers = parser.add_subparsers(dest="command", help="Commands")
-
-    # Initialize subparsers with parent arguments
-    subparsers.add_parser(
-        "plan",
-        help="Generate plan only",
-        parents=[base_parser],
-    )
-    subparsers.add_parser(
-        "todo",
-        help="Generate todo only",
-        parents=[base_parser],
-    )
-    init_parser = subparsers.add_parser(
-        "init",
-        help="Initialize template",
-        parents=[base_parser],
-    )
-    init_parser.add_argument("template", nargs="?", default="dev", help="Template name")
-    init_parser.add_argument("--force", action="store_true", help="Force overwrite")
-
-    args = parser.parse_args()
-
-    if args.command == "init":
-        initialize(force=args.force, template_dir=args.template)
-        return
-
-    # Setup environment and validate model
-    success, message = check_model_support(args.model)
-    print(message)
-    if not success:
-        return
-
-    setup_env()
-
-    # Setup folders
-    input_folder, output_folder = setup_folders(args.input, args.output, args.category)
-
-    # Execute commands based on arguments
-    if args.command == "plan":
-        response = get_plan(input_folder, output_folder, args.model, args.retry)
-        if response.get("status") in ["exit", "error"]:
+@click.group(invoke_without_command=True)
+@common_options
+@click.pass_context
+def cli(ctx, **kwargs):
+    """Plan and Todo Manager"""
+    if ctx.invoked_subcommand is None:
+        # Setup environment and validate model
+        success, message = check_model_support(kwargs["model"])
+        print(message)
+        if not success:
             return
-    elif args.command == "todo":
-        response = get_todo(input_folder, output_folder, args.model, args.retry)
-        if response.get("status") == "error":
-            print("[red]Failed to process todo[/red]")
-            return
-    else:
-        # Default behavior: run both
+
+        setup_env()
+
+        # Setup folders
+        input_folder, output_folder = setup_folders(
+            kwargs["input"], kwargs["output"], kwargs["category"]
+        )
+
+        # Run both plan and todo
         plan_response, todo_response = get_all(
-            input_folder, output_folder, args.model, args.retry
+            input_folder, output_folder, kwargs["model"], kwargs["retry"]
         )
         if plan_response.get("status") in ["exit", "error"]:
             return
         if todo_response.get("status") == "error":
             print("[red]Failed to complete the process[/red]")
             return
+
+
+@cli.command()
+@common_options
+def plan(**kwargs):
+    """Generate plan only"""
+    success, message = check_model_support(kwargs["model"])
+    print(message)
+    if not success:
+        return
+
+    setup_env()
+
+    input_folder, output_folder = setup_folders(
+        kwargs["input"], kwargs["output"], kwargs["category"]
+    )
+
+    response = get_plan(input_folder, output_folder, kwargs["model"], kwargs["retry"])
+    if response.get("status") in ["exit", "error"]:
+        return
+
+
+@cli.command()
+@common_options
+def todo(**kwargs):
+    """Generate todo only"""
+    success, message = check_model_support(kwargs["model"])
+    print(message)
+    if not success:
+        return
+
+    setup_env()
+
+    input_folder, output_folder = setup_folders(
+        kwargs["input"], kwargs["output"], kwargs["category"]
+    )
+
+    response = get_todo(input_folder, output_folder, kwargs["model"], kwargs["retry"])
+    if response.get("status") == "error":
+        print("[red]Failed to process todo[/red]")
+        return
+
+
+@cli.command()
+@click.argument("template", default="dev")
+@click.option("--force", is_flag=True, help="Force overwrite")
+@common_options
+def init(template, force, **kwargs):
+    """Initialize template"""
+    initialize(force=force, template_dir=template)
+
+
+def main():
+    """Main entry point for the application."""
+    cli()
 
 
 if __name__ == "__main__":

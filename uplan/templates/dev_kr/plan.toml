@@ -1,7 +1,6 @@
 [prompt]
 role = "You are a good code architect and have a good understanding of the development process."
 goal = "Create a plan for development."
-preferred_language = "Korean"
 instructions = [
     "Review the <user_input> section in advance and reflect it in the <template>.",
     "Fill in the only <select> entries.",
@@ -11,6 +10,8 @@ instructions = [
 output_structure = [
     "Write it in JSON format inside a ```json ``` codeblock.",
     "Key values use lowercase",
+    "Spaces are treated as &nbsp",
+    "Preferred language is Korean",
 ]
 
 # ======================================

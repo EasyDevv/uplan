@@ -2,11 +2,37 @@ from typing import Dict
 
 
 def add_completed_status(data: Dict) -> Dict:
+    """
+    Add 'completed' status to all tasks in the data structure.
+
+    This function traverses the data structure and transforms task entries
+    by adding a 'completed: False' status to each task. It handles both
+    category-based task organization and direct task lists.
+
+    Args:
+        data: A dictionary containing sections with tasks or categories of tasks
+
+    Returns:
+        The modified dictionary with 'completed' status added to all tasks
+    """
+    # Iterate through each section in the data
+    paths = [
+        lambda d, section: d[section]["categories"],
+        lambda d, section: [d[section]],
+    ]
+
     for section in data:
-        if "tasks" in data[section]:
-            data[section]["tasks"] = [
-                {"task": task, "completed": False} for task in data[section]["tasks"]
-            ]
+        for path_func in paths:
+            try:
+                containers = path_func(data, section)
+                for container in containers:
+                    if "tasks" in container:
+                        container["tasks"] = [
+                            {"task": task, "completed": False}
+                            for task in container["tasks"]
+                        ]
+            except (KeyError, TypeError):
+                continue
 
     return data
 
@@ -37,15 +63,22 @@ def toml_to_markdown(data) -> str:
             for key, value in content.items():
                 # Format key name (e.g., "frameworks" -> "Frameworks")
                 key_name = key.capitalize()
-                markdown += f"**{key_name}:**\n"
+                markdown += f"### {key_name}\n\n"
 
                 # Process arrays as lists
                 if isinstance(value, list):
-                    for item in value:
-                        # Add checkboxes for task lists, use regular bullet points for other lists
-                        if key.lower() == "tasks":
-                            markdown += f"- [ ] {item}\n"
-                        else:
+                    # Special handling for categories
+                    if key.lower() == "categories":
+                        for category in value:
+                            if isinstance(category, dict) and "title" in category:
+                                markdown += f"\n#### {category['title']}\n"
+                                if "tasks" in category:
+                                    for task in category["tasks"]:
+                                        markdown += f"- [ ] {task}\n"
+                                markdown += "\n"
+                    # Regular list processing
+                    else:
+                        for item in value:
                             markdown += f"- {item}\n"
                 # Process single values as plain text
                 else:

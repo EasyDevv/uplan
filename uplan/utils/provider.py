@@ -64,6 +64,10 @@ def check_model_support(model_name: str) -> Tuple[bool, str]:
         model, provider, _, _ = model_details
 
         if provider == "ollama":
+            os.environ["OLLAMA_CONTEXT_LENGTH"] = os.getenv(
+                "OLLAMA_CONTEXT_LENGTH", 2048
+            )
+
             return True, f"Model: {model}, Provider: {provider}"
 
         if not provider:
