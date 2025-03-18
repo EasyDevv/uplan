@@ -13,11 +13,6 @@ from rich import print
 from uplan.models.todo import TodoModel
 from uplan.question import collect_answers_cli, select_option
 from uplan.utils.data import add_completed_status, toml_to_markdown
-from uplan.utils.display import (
-    display_json_panel,
-    display_streaming,
-    display_text_panel,
-)
 from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 
@@ -34,13 +29,8 @@ def run(
     debug: bool = False,
     **litellm_kwargs,
 ) -> dict:
-    display_json_panel(prompt, title=prompt_title, border_style="green")
-
     optimized_prompt = dict_to_xml(prompt)
     optimized_prompt = optimize_for_prompt(optimized_prompt)
-
-    if debug:
-        display_text_panel(optimized_prompt, title=prompt_title, border_style="green")
 
     for attempt in range(1, max_retries + 1):
         try:
@@ -51,7 +41,6 @@ def run(
                 **litellm_kwargs,
             )
 
-            text = display_streaming(response)
             dict_block = extract_code_block(text)
             json_block = json.loads(dict_block)
 
@@ -71,23 +60,10 @@ def run(
                 choices=["y", "r", "x"],
             )
 
-            if answer.lower() == "r":
-                display_text_panel(text="Regenerating document. Retrying...")
-                continue
-            elif answer.lower() == "x":
-                display_text_panel(text="Exiting process.")
-
-                return {"status": "exit", "data": None, "output_file": output_file}
-
             return {"status": "success", "data": json_block, "output_file": output_file}
-        except json.JSONDecodeError as je:
-            display_text_panel(text=f"Invalid JSON format: {je}")
         except Exception as e:
-            display_text_panel(text=f"Error processing response: {e}")
-        if attempt < max_retries:
-            display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
+            print(e)
 
-    display_text_panel(text=f"Failed to process response after {max_retries} attempts.")
     raise Exception("Max retries exceeded")
 
 
