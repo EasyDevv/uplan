@@ -1,15 +1,24 @@
 <div class="space-y-4">
     {% for task in todos %}
-    <div class="p-4 border rounded-lg">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-                <input type="checkbox" hx-post="/complete/{{ loop.index0 }}" hx-target="#todo-content" class="w-5 h-5"
-                    {% if task.completed %}checked{% endif %}>
-                <span class="{% if task.completed %}line-through text-gray-500{% endif %}">
-                    {{ task.description }}
-                </span>
+    <div class="card bg-base-100 shadow-sm hover:shadow-md transition-all duration-200">
+        <div class="card-body p-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <input type="checkbox"
+                        class="checkbox checkbox-primary checkbox-sm"
+                        hx-post="/complete/{{ loop.index0 }}"
+                        hx-target="#todo-content"
+                        hx-indicator=".htmx-indicator-{{ loop.index0 }}"
+                        {% if task.completed %}checked{% endif %}>
+                    <span class="{% if task.completed %}line-through text-base-content/50{% endif %}">
+                        {{ task.description }}
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-base-content/70">{{ task.due_date }}</span>
+                    <div class="htmx-indicator-{{ loop.index0 }} loading loading-spinner loading-xs text-primary hidden"></div>
+                </div>
             </div>
-            <span class="text-sm text-gray-500">{{ task.due_date }}</span>
         </div>
     </div>
     {% endfor %}

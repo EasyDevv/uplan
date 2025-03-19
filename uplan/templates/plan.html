@@ -1,14 +1,16 @@
 <div class="space-y-6">
     {% for section, content in plan.items() %}
-    <div class="card bg-base-200">
+    <div class="card bg-base-200 hover:shadow-lg transition-shadow duration-200">
         <div class="card-body">
             <h2 class="card-title text-base-content">{{ section | title }}</h2>
-            <div class="form-control">
+            <div class="form-control w-full">
                 <textarea
-                    class="textarea textarea-bordered font-mono bg-base-300 min-h-[200px] text-sm"
+                    class="textarea textarea-bordered textarea-md font-mono bg-base-300 min-h-[200px] text-sm focus:textarea-primary"
                     hx-post="/update-plan/{{ section }}"
                     hx-trigger="change"
-                    hx-target="#result-content">{{ content | tojson(indent=2) }}</textarea>
+                    hx-target="#result-content"
+                    hx-indicator=".htmx-indicator">{{ content | tojson(indent=2) }}</textarea>
+                <div class="htmx-indicator loading loading-spinner loading-sm text-primary mt-2"></div>
             </div>
         </div>
     </div>
