@@ -1,0 +1,16 @@
+<div class="space-y-6">
+    {% for section, content in plan.items() %}
+    <div class="card bg-base-200">
+        <div class="card-body">
+            <h2 class="card-title text-base-content">{{ section | title }}</h2>
+            <div class="form-control">
+                <textarea
+                    class="textarea textarea-bordered font-mono bg-base-300 min-h-[200px] text-sm"
+                    hx-post="/update-plan/{{ section }}"
+                    hx-trigger="change"
+                    hx-target="#result-content">{{ content | tojson(indent=2) }}</textarea>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

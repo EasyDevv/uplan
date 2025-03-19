@@ -1,0 +1,16 @@
+<div class="space-y-4">
+    {% for task in todos %}
+    <div class="p-4 border rounded-lg">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <input type="checkbox" hx-post="/complete/{{ loop.index0 }}" hx-target="#todo-content" class="w-5 h-5"
+                    {% if task.completed %}checked{% endif %}>
+                <span class="{% if task.completed %}line-through text-gray-500{% endif %}">
+                    {{ task.description }}
+                </span>
+            </div>
+            <span class="text-sm text-gray-500">{{ task.due_date }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
