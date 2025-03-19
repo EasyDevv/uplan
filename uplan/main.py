@@ -16,7 +16,7 @@ def setup_folders(
     output_folder = Path(output_root) / category
 
     if not input_folder.exists():
-        initialize(template_dir=category)
+        initialize(form_dir=category)
 
     output_folder.mkdir(parents=True, exist_ok=True)
     return input_folder, output_folder
@@ -29,7 +29,7 @@ def common_options(f):
         click.option(
             "--retry", default=5, type=int, help="Max retries for LLM requests"
         ),
-        click.option("--category", default="dev", help="Template category"),
+        click.option("--category", default="dev", help="form category"),
         click.option("--input", default="./input", help="Input folder"),
         click.option("--output", default="./output", help="Output folder"),
     ]
@@ -110,12 +110,12 @@ def todo(**kwargs):
 
 
 @cli.command()
-@click.argument("template", default="dev")
+@click.argument("form", default="dev")
 @click.option("--force", is_flag=True, help="Force overwrite")
 @common_options
-def init(template, force, **kwargs):
-    """Initialize template"""
-    initialize(force=force, template_dir=template)
+def init(form, force, **kwargs):
+    """Initialize form"""
+    initialize(force=force, form_dir=form)
 
 
 def main():

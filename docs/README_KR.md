@@ -125,7 +125,7 @@ uplan
 uplan --model "ollama/qwq" --category "custom"
 
 # 입출력 경로 변경
-uplan --input "./my-templates" --output "./my-plans"
+uplan --input "./my-form" --output "./my-plans"
 ```
 
 > **참고**: 지정한 `--input/[category]` 경로에 템플릿이 없으면 자동으로 초기화합니다.
@@ -135,11 +135,11 @@ uplan --input "./my-templates" --output "./my-plans"
 템플릿 파일을 생성합니다:
 
 ```bash
-uplan init [template] [--force]
+uplan init [form] [--force]
 ```
 
 **옵션:**
-- `template`: 초기화할 템플릿 이름 (기본값: "dev")
+- `form`: 초기화할 템플릿 이름 (기본값: "dev")
 - `--force`: 기존 파일을 강제로 덮어쓰기
 
 예시:
@@ -166,7 +166,7 @@ role = "You are a good code architect and have a good understanding of the devel
 goal = "Create a plan for development."
 preferred_language = "English"
 instructions = [
-    "Review what's already entered in <template>.",
+    "Review what's already entered in <form>.",
     "<select> can contain multiple contents.",
     "Fill in the <select> parts to create the final deliverable."
 ]
@@ -178,7 +178,7 @@ output_structure = [
 
 **템플릿 질문 구성:**
 ```toml
-[template.project_basics.overview]
+[form.project_basics.overview]
 ask = "Please describe the overview of the project"
 description = "What you are making (app, service, etc.), target platform (web, mobile, desktop, etc.), main users, etc."
 required = true
@@ -195,7 +195,7 @@ required = true
 계획을 바탕으로 세부 할 일 목록을 생성하기 위한 템플릿입니다.
 
 ```toml
-[template.frontend]
+[form.frontend]
 framework = ["<select> (e.g., react, vue, angular)"]
 tasks = [
     "<select> (e.g., design login page UI, design sign up page UI, implement user input validation logic)",

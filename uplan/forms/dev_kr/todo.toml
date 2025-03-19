@@ -16,35 +16,35 @@ output_structure = [
 ]
 
 # ======================================
-# To-do Template
+# To-do
 # ======================================
-[template.frontend]
+[form.frontend]
 frameworks = ["<select> (예: react, vue, angular)"]
 libraries = ["<select> (예: react-router, redux, axios)"]
 
-[[template.frontend.categories]]
+[[form.frontend.categories]]
 title = "<select> (예: 사용자 인증, 데이터 시각화, 실시간 알림)"
 tasks = ["<select> (예: JWT 기반 로그인 구현, 차트 라이브러리 연동, 웹소켓 연결 설정)"]
 
-[template.backend]
+[form.backend]
 frameworks = ["<select> (예: spring boot, django, express)"]
 libraries = ["<select> (예: hibernate, sequelize, swagger)"]
 
-[[template.backend.categories]]
+[[form.backend.categories]]
 title = "<select> (예: API 개발, 데이터 처리, 보안 강화)"
 tasks = ["<select> (예: RESTful 엔드포인트 생성, 배치 작업 스케줄링, OAuth 2.0 통합)"]
 
-[template.database]
+[form.database]
 frameworks = ["<select> (예: mysql, postgresql, mongodb)"]
 libraries = ["<select> (예: hibernate, prisma, sequelize)"]
 
-[[template.database.categories]]
+[[form.database.categories]]
 title = "<select> (예: 스키마 설계, 데이터 마이그레이션, 백업 전략)"
 tasks = ["<select> (예: 데이터 모델링, 인덱스 최적화, 트랜잭션 관리 구현)"]
 
-[template.testing]
+[form.testing]
 frameworks = ["<select> (예: jest, cypress, postman)"]
 
-[[template.testing.categories]]
+[[form.testing.categories]]
 title = "<select> (예: 단위 테스트, E2E 테스트, 성능 테스트)"
 tasks = ["<select> (예: 테스트 케이스 작성, 부하 테스트 시나리오 개발, 코드 커버리지 분석)"]

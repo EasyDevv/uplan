@@ -15,36 +15,36 @@ output_structure = [
 # ======================================
 # To-do
 # ======================================
-[template.environment_setup]
+[form.environment_setup]
 frameworks = ["<select> (e.g., docker, virtual machine, cloud provider)"]
 tasks = [
     "<select> (e.g., create virtual environment, install required Python packages, initialize Django project)",
 ]
 
-[template.frontend]
+[form.frontend]
 frameworks = ["<select> (e.g., react, vue, angular)"]
 tasks = [
     "<select> (e.g., design login page UI, design signup page UI, implement user input validation logic)",
 ]
 
-[template.backend]
+[form.backend]
 frameworks = ["<select> (e.g., fastapi, express, django)"]
 tasks = [
     "<select> (e.g., develop API endpoints, implement authentication/authorization logic, implement business logic, validate data)",
 ]
 
-[template.database]
+[form.database]
 frameworks = ["<select> (e.g., postgresql, mysql, mongodb)"]
 tasks = [
     "<select> (e.g., design database schema, define table relationships, set up indexes, write data migration scripts)",
 ]
 
-[template.testing]
+[form.testing]
 frameworks = ["<select> (e.g., jest, react testing library, cypress)"]
 tasks = [
     "<select> (e.g., user input validation logic, backend API integration, API request and response handling logic)",
 ]
 
-[template.deployment]
+[form.deployment]
 frameworks = ["<select> (e.g., github actions, jenkins, aws codepipeline)"]
 tasks = ["<select> (e.g., set up CI/CD pipeline, write deployment scripts)"]

@@ -26,7 +26,7 @@ uPlan automates the development planning process to generate consistent and stru
 - Lack of repeatable workflow
 
 **uPlan's Solution:**
-- Template-based structured questions
+- form-based structured questions
 - Efficient resource usage by calling AI only when necessary
 - Compatibility ensured through structured TOML format output
 
@@ -35,7 +35,7 @@ uPlan automates the development planning process to generate consistent and stru
 - 🎯 Automatic development plan generation using AI
 - ✅ Detailed to-do list creation based on plans
 - 📝 Structured output in TOML format
-- 🔄 Interactive template customization
+- 🔄 Interactive form customization
 - 🛠️ Support for various AI models (OpenAI, Anthropic, Gemini, Deepseek, Ollama, etc.)
 
 ## 🔄 How It Works
@@ -45,7 +45,7 @@ uPlan operates through the following workflow:
   <img src="docs/assets/workflow.png" alt="uplan Workflow" width="700">
 </p>
 
-1. **Structured Question Generation** (Code): Creates questions based on user-provided templates
+1. **Structured Question Generation** (Code): Creates questions based on user-provided forms
 2. **Question Response** (User): Provides answers to structured questions
 3. **Plan Generation** (AI): Creates development plans based on user responses
 4. **Plan Verification** (User): Reviews and approves the generated plan
@@ -91,8 +91,8 @@ uplan [global options] [command] [command options]
 |------|------|--------|
 | `--model` | LLM model to use | `"ollama/qwq"` |
 | `--retry` | Maximum retry count for LLM requests | `5` |
-| `--category` | Template type | `"dev"` |
-| `--input` | Input template folder path | `"./input"` |
+| `--category` | form type | `"dev"` |
+| `--input` | Input form folder path | `"./input"` |
 | `--output` | Output file save folder | `"./output"` |
 | `--debug` | Enable debug mode | `false` |
 
@@ -124,40 +124,40 @@ uplan
 uplan --model "ollama/qwq" --category "custom"
 
 # Change input/output paths
-uplan --input "./my-templates" --output "./my-plans"
+uplan --input "./my-form" --output "./my-plans"
 ```
 
-> **Note**: If templates don't exist in the specified `--input/[category]` path, they will be automatically initialized.
+> **Note**: If form don't exist in the specified `--input/[category]` path, they will be automatically initialized.
 
-#### init - Template Initialization
+#### init - form Initialization
 
-Creates template files:
+Creates form files:
 
 ```bash
-uplan init [template] [--force]
+uplan init [form] [--force]
 ```
 
 **Options:**
-- `template`: Template name to initialize (default: "dev")
+- `form`: form name to initialize (default: "dev")
 - `--force`: Force overwrite of existing files
 
 Examples:
 ```bash
-# Initialize default dev template
+# Initialize default dev form
 uplan init
 
-# Initialize custom template
+# Initialize custom form
 uplan init dev_en
 
-# Force overwrite existing template
+# Force overwrite existing form
 uplan init dev --force
 ```
 
-## 🛠️ Template Customization
+## 🛠️ form Customization
 
 ### plan.toml
 
-A template that includes prompts and Q&A structure for basic planning.
+A form that includes prompts and Q&A structure for basic planning.
 
 ```toml
 [prompt]
@@ -165,7 +165,7 @@ role = "You are a good code architect and have a good understanding of the devel
 goal = "Create a plan for development."
 preferred_language = "English"
 instructions = [
-    "Review what's already entered in <template>.",
+    "Review what's already entered in <form>.",
     "<select> can contain multiple contents.",
     "Fill in the <select> parts to create the final deliverable."
 ]
@@ -175,9 +175,9 @@ output_structure = [
 ]
 ```
 
-**Template Question Structure:**
+**form Question Structure:**
 ```toml
-[template.project_basics.overview]
+[form.project_basics.overview]
 ask = "Please describe the overview of the project"
 description = "What you are making (app, service, etc.), target platform (web, mobile, desktop, etc.), main users, etc."
 required = true
@@ -191,10 +191,10 @@ required = true
 
 ### todo.toml
 
-A template for generating detailed to-do lists based on the plan.
+A form for generating detailed to-do lists based on the plan.
 
 ```toml
-[template.frontend]
+[form.frontend]
 framework = ["<select> (e.g., react, vue, angular)"]
 tasks = [
     "<select> (e.g., design login page UI, design sign up page UI, implement user input validation logic)",

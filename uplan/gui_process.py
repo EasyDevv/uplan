@@ -168,14 +168,14 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
 
 def prepare_answers_cli(input_folder: Path) -> tuple[dict, dict]:
     """
-    Read and validate the plan template from input folder.
+    Read and validate the plan form from input folder.
     Args:
         input_folder: Path to the input folder containing plan.toml
     Returns:
-        tuple[dict, dict]: Tuple containing (questions, template)
-            where questions is the full questions dict and template is the template section
+        tuple[dict, dict]: Tuple containing (questions, form)
+            where questions is the full questions dict and form is the form section
     Raises:
-        RuntimeError: If plan.toml is missing or template section is not found
+        RuntimeError: If plan.toml is missing or form section is not found
     """
     try:
         with open(input_folder / "plan.toml", "rb") as f:
@@ -183,13 +183,13 @@ def prepare_answers_cli(input_folder: Path) -> tuple[dict, dict]:
     except FileNotFoundError:
         raise RuntimeError(f"Failed to read plan.toml in {input_folder}")
 
-    template = answers_data.get("template")
-    if template is None:
-        raise RuntimeError("No template found in plan.toml")
+    form = answers_data.get("form")
+    if form is None:
+        raise RuntimeError("No form found in plan.toml")
 
-    template, only_answers = collect_answers_cli(template)
+    form, only_answers = collect_answers_cli(form)
 
-    answers_data.update({"user_input": only_answers, "template": template})
+    answers_data.update({"user_input": only_answers, "form": form})
 
     return answers_data
 

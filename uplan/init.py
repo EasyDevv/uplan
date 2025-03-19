@@ -5,20 +5,18 @@ from uplan.models.todo import TodoModel
 
 # Configuration paths
 DEFAULT_CONFIG_DIR = Path.cwd() / "input"
-TEMPLATES_DIR = Path(__file__).parent / "templates"
-DEFAULT_TEMPLATE_SUBDIR = "dev"
+FORMS_DIR = Path(__file__).parent / "forms"
+DEFAULT_form_SUBDIR = "dev"
 
 
-def initialize(
-    force: bool = False, template_dir: str = DEFAULT_TEMPLATE_SUBDIR
-) -> None:
-    """Initialize configuration directory by copying all files from specified template directory"""
+def initialize(force: bool = False, form_dir: str = DEFAULT_form_SUBDIR) -> None:
+    """Initialize configuration directory by copying all files from specified form directory"""
     try:
-        source_dir = TEMPLATES_DIR / template_dir
+        source_dir = FORMS_DIR / form_dir
         if not source_dir.exists():
-            raise ValueError(f"Template directory '{template_dir}' not found")
+            raise ValueError(f"form directory '{form_dir}' not found")
 
-        target_dir = DEFAULT_CONFIG_DIR / template_dir
+        target_dir = DEFAULT_CONFIG_DIR / form_dir
 
         # Check if target directory exists and whether to overwrite
         if target_dir.exists():
@@ -27,17 +25,17 @@ def initialize(
                 return
             shutil.rmtree(target_dir)
 
-        # Copy entire template directory
+        # Copy entire form directory
         target_dir.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(source_dir, target_dir)
-        print(f"Created {target_dir} from template '{template_dir}'")
+        print(f"Created {target_dir} from form '{form_dir}'")
 
     except Exception as e:
         print(f"Initialization failed: {str(e)}")
         raise
 
 
-def validate_templates(category: str) -> None:
+def validate_forms(category: str) -> None:
     """Validate TOML files in the input directory"""
     input_dir = Path(f"./input/{category}")
 

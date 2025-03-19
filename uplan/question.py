@@ -38,7 +38,7 @@ class QuestionBuilder:
 
 
 def collect_answers_cli(
-    template: Dict[str, Any],
+    form: Dict[str, Any],
     default_value: str = "<select>",
     question_builder: Optional[QuestionBuilder] = None,
 ):
@@ -46,7 +46,7 @@ def collect_answers_cli(
     responses = {}
     only_answers = {}
 
-    for section, questions in template.items():
+    for section, questions in form.items():
         responses[section] = {}
         for key, q in questions.items():
             ask = q.get("ask", key)
@@ -98,12 +98,12 @@ if __name__ == "__main__":
     # from rich.json import JSON
     # from rich import print
 
-    # with open("./templates/dev/plan.toml", "rb") as f:
+    # with open("./forms/dev/plan.toml", "rb") as f:
     #     data = tomllib.load(f)
 
     # # print(data.get("questions"))
 
-    # response = collect_answers_from_template(data.get("questions"))
+    # response = collect_answers_from_form(data.get("questions"))
 
     # dumped = json.dumps(response)
     # string = JSON(dumped)
