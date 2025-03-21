@@ -19,7 +19,7 @@ dependencies = [
     "tomli-w>=1.2.0",
     "click",
     "fastapi>=0.115.11",
-    "uvicorn>=0.34.0",
+    "uvicorn[standard]>=0.34.0",
 ]
 dynamic = ["version"]
 

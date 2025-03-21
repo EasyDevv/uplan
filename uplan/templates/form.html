@@ -1,0 +1,60 @@
+<!-- Plan Form Component -->
+<form id="plan-form" hx-post="/generate-plan" hx-target="#result-content" hx-swap="innerHTML" class="space-y-6">
+    <div class="flex justify-end mb-4">
+        <label class="btn btn-sm" data-state="show">
+            <input type="checkbox" id="toggle-all-fields" class="hidden" />
+            <span>Show Optional Fields</span>
+        </label>
+    </div>
+    {% for section, questions in form.items() %}
+    <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+            <h3 class="card-title text-xl mb-4">{{ section | title }}</h3>
+            {% for name, question in questions.items() %}
+            <div class="form-control w-full {% if not question.required %}optional-field hidden{% endif %}">
+                <label class="label">
+                    <span class="label-text text-base font-medium">{{ question.ask }}</span>
+                </label>
+                <textarea class="textarea textarea-bordered w-full focus:textarea-primary"
+                    name="answers.{{ section }}.{{ name }}" placeholder="{{ question.description }}" {% if
+                    question.required %}required{% endif %}></textarea>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="card-actions justify-end mt-6">
+        <button id="submit-btn" class="btn btn-primary btn-md" type="submit">
+            <span class="loading loading-spinner" style="display: none;" data-loading-state></span>
+            Generate Plan
+        </button>
+
+        <style>
+            .htmx-request #submit-btn [data-loading-state] {
+                display: inline-block !important;
+            }
+        </style>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleAllFields = document.getElementById('toggle-all-fields');
+    
+    toggleAllFields.addEventListener('change', function() {
+        const optionalFields = document.querySelectorAll('.optional-field');
+        optionalFields.forEach(field => {
+            field.classList.toggle('hidden', !this.checked);
+        });
+        
+        // Update button text
+        const label = this.closest('label');
+        const textSpan = label.querySelector('span');
+        textSpan.textContent = this.checked ? 'Hide Optional Fields' : 'Show Optional Fields';
+        
+        // Update button state
+        label.classList.toggle('btn-neutral', this.checked);
+    });
+});
+</script>

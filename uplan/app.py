@@ -1,9 +1,10 @@
 import json
 import os
-import tomllib
 from pathlib import Path
 
 import tomli_w
+import tomllib
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -11,12 +12,11 @@ from fastapi.templating import Jinja2Templates
 from uplan.gui_process import get_plan, get_todo, prepare_todo
 
 app = FastAPI()
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+ROOT_PATH = Path(__file__).parent
 
+templates = Jinja2Templates(directory=ROOT_PATH / "templates")
 # Load questions from plan.toml
-PLAN_FORM = tomllib.load(open(Path(__file__).parent / "forms/dev/plan.toml", "rb")).get(
-    "form", {}
-)
+PLAN_FORM = tomllib.load(open(ROOT_PATH / "forms/dev/plan.toml", "rb")).get("form", {})
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -133,19 +133,6 @@ async def generate_todo(request: Request):
     )
 
 
-@app.post("/regenerate")
-async def regenerate(request: Request):
-    """
-    Regenerates the plan with the same answers but potentially different results.
-    """
-    data = await request.json()
-    if not isinstance(data, dict):
-        raise HTTPException(
-            status_code=400, detail="Invalid data format: Expected a dictionary"
-        )
-    return templates.TemplateResponse("plan.html", {"request": request, "plan": data})
-
-
 @app.post("/complete/{task_id}")
 async def complete_task(task_id: int):
     """
@@ -156,6 +143,13 @@ async def complete_task(task_id: int):
 
 # For development
 if __name__ == "__main__":
-    import uvicorn
+    # print(f"{ROOT_PATH}/templates")
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        reload_includes=["*.html", "*.css"],
+        # reload_dirs=["uplan/templates"],  # Detect changes in templates
+    )

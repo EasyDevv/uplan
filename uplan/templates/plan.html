@@ -5,7 +5,7 @@
             <h2 class="card-title text-base-content">{{ section | title }}</h2>
             <div class="form-control w-full">
                 <textarea
-                    class="textarea textarea-bordered textarea-md font-mono bg-base-300 min-h-[200px] text-sm focus:textarea-primary"
+                    class="textarea textarea-bordered font-mono bg-base-300 min-h-[240px] text-base leading-relaxed focus:textarea-primary"
                     hx-post="/update-plan/{{ section }}"
                     hx-trigger="change"
                     hx-target="#result-content"

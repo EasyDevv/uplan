@@ -6,68 +6,46 @@
         <!-- Left Column: Question Form -->
         <section class="card bg-base-100 shadow-xl">
             <div class="card-body">
-                <h2 class="card-title text-2xl">Plan Questions</h2>
-                <form id="plan-form" hx-post="/generate-plan" hx-target="#result-content" hx-swap="innerHTML">
-                    {% for section, questions in form.items() %}
-                    <div class="mb-6">
-                        <h3 class="text-xl font-semibold mb-4">{{ section | title }}</h3>
-                        {% for name, question in questions.items() %}
-                        <div class="form-control w-full mb-4">
-                            <label class="label">
-                                <span class="label-text font-medium">{{ question.ask }}</span>
-                                {% if question.required %}
-                                <span class="label-text-alt text-error">*Required</span>
-                                {% endif %}
-                            </label>
-                            <textarea class="textarea textarea-bordered textarea-md h-20 w-full"
-                                name="answers.{{ section }}.{{ name }}" placeholder="{{ question.description }}" {% if
-                                question.required %}required{% endif %}></textarea>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endfor %}
-                    <div class="card-actions justify-end">
-                        <button class="btn btn-primary btn-md" type="submit">Generate Plan</button>
-                    </div>
-                </form>
+                <h2 class="card-title text-2xl mb-6">Plan Questions</h2>
+                {% include "form.html" %}
             </div>
         </section>
 
         <!-- Right Column: Results and Options -->
-        <section class="card bg-base-100 shadow-xl">
+        <section class="card bg-base-100 shadow-xl">f
             <div class="card-body">
-                <!-- Model and Options -->
-                <div class="flex flex-wrap gap-4 mb-6">
-                    <div class="form-control w-full max-w-xs">
-                        <label class="label">
-                            <span class="label-text">Model</span>
-                        </label>
-                        <select class="select select-bordered select-md w-full max-w-xs">
-                            <option>gpt-3.5-turbo</option>
-                            <option>gpt-4</option>
-                        </select>
-                    </div>
+                <!-- Model Selection -->
+                <div class="form-control w-full max-w-xs mb-6">
+                    <label class="label">
+                        <span class="label-text font-medium">Model</span>
+                    </label>
+                    <select class="select select-bordered select-md w-full focus:select-primary">
+                        <option>gpt-3.5-turbo</option>
+                        <option>gpt-4</option>
+                    </select>
                 </div>
 
                 <!-- Results Area -->
-                <div id="result-content" class="min-h-[500px] bg-base-200 rounded-lg p-4">
+                <div id="result-content" class="min-h-[500px] bg-base-200 rounded-lg p-6">
                     {% if plan %}
                     {% include "plan.html" %}
                     {% else %}
-                    <div class="text-center text-base-content/60 mt-8">
+                    <div class="flex items-center justify-center h-full text-base-content/60">
                         <p>Fill out the form and click Generate Plan to see results</p>
                     </div>
                     {% endif %}
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="card-actions justify-end mt-4">
+                <div class="card-actions justify-end mt-6 space-x-2">
                     <button class="btn btn-outline btn-md" hx-post="/regenerate" hx-target="#result-content"
                         hx-swap="innerHTML">
+                        <span id="regenerate-spinner" class="loading loading-spinner htmx-indicator"></span>
                         Regenerate
                     </button>
                     <button class="btn btn-primary btn-md" hx-post="/generate-todo" hx-target="#todo-content"
                         hx-swap="innerHTML">
+                        <span id="todo-spinner" class="loading loading-spinner htmx-indicator"></span>
                         Generate Todo
                     </button>
                 </div>
