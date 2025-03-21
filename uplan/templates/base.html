@@ -5,10 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UPlan</title>
+    <!-- External resources -->
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+
+    <!-- Custom styles -->
+    <link href="/static/style.css" rel="stylesheet" type="text/css" />
+
+    <!-- arel Hot Reload -->
+    {% if DEBUG %} {{ hot_reload.script(url_for('hot-reload')) | safe }} {% endif %}
     <script>
         tailwind.config = {
             theme: {
@@ -21,9 +28,11 @@
         .htmx-indicator {
             display: none;
         }
+
         .htmx-request .htmx-indicator {
             display: inline-block;
         }
+
         /* Global styles */
         .textarea-bordered {
             min-height: 120px !important;
@@ -31,14 +40,65 @@
             line-height: 1.6 !important;
             padding: 1rem !important;
         }
+
         .label {
             padding: 0.75rem 0.25rem !important;
         }
+
         .label-text {
             font-size: 1rem !important;
         }
+
         .card-body {
             padding: 1.5rem !important;
+        }
+
+        /* Streaming content styles */
+        #stream-content {
+            font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+            font-size: 0.925rem;
+            line-height: 1.6;
+            padding: 1rem;
+            background-color: var(--base-300);
+            border-radius: 0.5rem;
+            min-height: 200px;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+        }
+
+        #stream-status {
+            font-size: 0.875rem;
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #stream-status::before {
+            content: '';
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        #stream-status.text-info::before {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
     </style>
 </head>

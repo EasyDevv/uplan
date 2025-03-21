@@ -24,7 +24,7 @@ dependencies = [
 dynamic = ["version"]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = ["pytest", "arel"]
 
 [project.urls]
 source = "https://github.com/easydevv/uplan"

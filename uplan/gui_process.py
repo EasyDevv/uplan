@@ -27,8 +27,25 @@ def run(
     model: str = None,
     stream: bool = True,
     debug: bool = False,
+    stream_handler=None,
     **litellm_kwargs,
 ) -> dict:
+    """
+    Execute LLM completion with streaming support.
+
+    Args:
+        prompt_title: Title of the prompt
+        extracted_title: Title for extracted data
+        output_file: Path to save generated content
+        validate_model: Optional Pydantic model for validation
+        max_retries: Maximum number of retry attempts
+        prompt: Prompt dictionary
+        model: LLM model name
+        stream: Whether to stream responses
+        debug: Enable debug logging
+        stream_handler: Optional callback for handling streamed chunks
+        **litellm_kwargs: Additional arguments for litellm
+    """
     optimized_prompt = dict_to_xml(prompt)
     optimized_prompt = optimize_for_prompt(optimized_prompt)
 
@@ -41,26 +58,45 @@ def run(
                 **litellm_kwargs,
             )
 
-            dict_block = extract_code_block(text)
+            if stream and stream_handler:
+                # For streaming, delegate to handler and return early
+                for chunk in response:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        stream_handler(chunk.choices[0].delta.content)
+                return {"status": "success", "data": None}
+
+            # For non-streaming, accumulate full response
+            full_response = ""
+            if stream:
+                for chunk in response:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        full_response += chunk.choices[0].delta.content
+            else:
+                full_response = response.choices[0].message.content
+
+            dict_block = extract_code_block(full_response)
             json_block = json.loads(dict_block)
 
             if validate_model:
                 validate_model.model_validate(json_block)
 
-            # display_json_panel(json_block, title=extracted_title, border_style="green")
-
             Path(output_file).parent.mkdir(parents=True, exist_ok=True)
             with open(output_file, "wb") as f:
                 tomli_w.dump(json_block, f)
 
-            open_file(output_file)
+            # Only open file and prompt for review in non-streaming mode
+            if not stream:
+                open_file(output_file)
+                answer = select_option(
+                    text="Please review the generated document [dim]\n- Complete: Enter or Y \n- Regenerate: R \n- Exit: X[dim]",
+                    choices=["y", "r", "x"],
+                )
 
-            answer = select_option(
-                text="Please review the generated document [dim]\n- Complete: Enter or Y \n- Regenerate: R \n- Exit: X[dim]",
-                choices=["y", "r", "x"],
-            )
-
-            return {"status": "success", "data": json_block, "output_file": output_file}
+            return {
+                "status": "success",
+                "data": json_block if not stream else None,
+                "output_file": output_file,
+            }
         except Exception as e:
             print(e)
 

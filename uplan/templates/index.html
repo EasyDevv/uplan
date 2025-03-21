@@ -12,7 +12,7 @@
         </section>
 
         <!-- Right Column: Results and Options -->
-        <section class="card bg-base-100 shadow-xl">f
+        <section class="card bg-base-100 shadow-xl">
             <div class="card-body">
                 <!-- Model Selection -->
                 <div class="form-control w-full max-w-xs mb-6">
@@ -20,7 +20,7 @@
                         <span class="label-text font-medium">Model</span>
                     </label>
                     <select class="select select-bordered select-md w-full focus:select-primary">
-                        <option>gpt-3.5-turbo</option>
+                        <option>ollama/qwq</option>
                         <option>gpt-4</option>
                     </select>
                 </div>
@@ -38,10 +38,9 @@
 
                 <!-- Action Buttons -->
                 <div class="card-actions justify-end mt-6 space-x-2">
-                    <button class="btn btn-outline btn-md" hx-post="/regenerate" hx-target="#result-content"
-                        hx-swap="innerHTML">
-                        <span id="regenerate-spinner" class="loading loading-spinner htmx-indicator"></span>
-                        Regenerate
+                    <button id="submit-btn" class="btn btn-primary btn-md" type="button">
+                        <span class="loading loading-spinner" style="display: none;" data-loading-state></span>
+                        Generate Plan
                     </button>
                     <button class="btn btn-primary btn-md" hx-post="/generate-todo" hx-target="#todo-content"
                         hx-swap="innerHTML">
@@ -49,6 +48,89 @@
                         Generate Todo
                     </button>
                 </div>
+
+                <style>
+                    .htmx-request #submit-btn [data-loading-state] {
+                        display: inline-block !important;
+                    }
+                </style>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const submitBtn = document.getElementById('submit-btn');
+                        const form = document.getElementById('plan-form');
+
+                        submitBtn.addEventListener('click', async function () {
+                            const loadingSpinner = submitBtn.querySelector('[data-loading-state]');
+                            const resultContent = document.getElementById('result-content');
+
+                            // Show loading state
+                            loadingSpinner.style.display = 'inline-block';
+                            submitBtn.disabled = true;
+
+                            // Create result container for streaming content
+                            resultContent.innerHTML = `
+                            <div class="min-h-[200px] bg-base-200 rounded-lg p-6">
+                                <div id="stream-status" class="mb-4 text-info">Starting plan generation...</div>
+                                <div id="stream-content" class="font-mono whitespace-pre-wrap"></div>
+                            </div>
+                            `;
+
+                            const statusDiv = document.getElementById('stream-status');
+                            const contentDiv = document.getElementById('stream-content');
+                            let accumulatedContent = '';
+
+                            try {
+                                // Create form data
+                                const formData = new FormData(form);
+
+                                // Create EventSource for SSE
+                                const response = await fetch('/generate-plan', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+
+                                const reader = response.body.getReader();
+                                const decoder = new TextDecoder();
+
+                                while (true) {
+                                    const { value, done } = await reader.read();
+                                    if (done) break;
+
+                                    const chunk = decoder.decode(value);
+                                    const lines = chunk.split('\n');
+
+                                    for (const line of lines) {
+                                        if (line.startsWith('data: ')) {
+                                            const data = JSON.parse(line.slice(6));
+
+                                            if (data.error) {
+                                                statusDiv.className = 'mb-4 text-error';
+                                                statusDiv.textContent = `Error: ${data.error}`;
+                                                break;
+                                            } else if (data.done) {
+                                                statusDiv.className = 'mb-4 text-success';
+                                                statusDiv.textContent = 'Plan generation completed!';
+                                                break;
+                                            } else if (data.text) {
+                                                accumulatedContent += data.text;
+                                                contentDiv.textContent = accumulatedContent;
+                                                statusDiv.textContent = 'Generating plan...';
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (error) {
+                                statusDiv.className = 'mb-4 text-error';
+                                statusDiv.textContent = `Error: ${error.message}`;
+                            } finally {
+                                // Reset loading state
+                                loadingSpinner.style.display = 'none';
+                                submitBtn.disabled = false;
+                            }
+                        });
+                    });
+                </script>
             </div>
         </section>
     </div>
