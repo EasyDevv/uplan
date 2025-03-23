@@ -5,7 +5,7 @@ from pathlib import Path
 from nicegui import ui
 
 from uplan.ui.state import AppState
-from uplan.utils.data import toml_to_markdown
+from uplan.utils.data import toml_to_markdown, load_toml_file
 
 
 def create_main_layout(state: AppState) -> None:
@@ -51,13 +51,20 @@ def create_main_layout(state: AppState) -> None:
                 --depth: 1;
                 --noise: 0;
             }
+                     
         </style>
     """)
     ui.card.default_classes(
-        replace="block p-6 shadow-sm bg-base-200 border-base-300 border-radius-box"
+        replace="block p-1 shadow-sm bg-base-200 border-base-300 border-radius-box"
     )
 
-    ui.button.default_classes(replace="shadow-sm")
+    # ui.button.default_classes(replace="shadow-sm")
+    # ui.input.default_classes(
+    #     replace="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+    # )
+    ui.input.default_props('standout="bg-content text-white"')
+    ui.left_drawer.default_props("width=468 breakpoint=128")
+    # ui.expansion.default_props("model-value")
 
     # Header with project name and GitHub link
     with ui.header().classes("bg-base-200"):
@@ -66,10 +73,43 @@ def create_main_layout(state: AppState) -> None:
             ui.button(icon="home")
 
     # Left drawer for Questions panel
-    with ui.left_drawer(top_corner=True, bottom_corner=True).classes(
-        "drawer-side bg-base-200 w-64"
+    with ui.left_drawer(top_corner=True, bottom_corner=True, fixed=False).classes(
+        "bg-base-200 w-full"
     ):
-        ui.label("Questions").classes("drawer-title text-xl font-bold")
+        ui.label("Questions").classes("text-xl font-bold p-1")
+
+        # Load form structure from TOML
+        form_data = load_toml_file(Path("uplan/forms/dev/plan.toml"))
+
+        # Create a scrollable container for the form
+        with ui.scroll_area().classes("w-full h-full p-1"):
+            # Organize questions by section
+            sections = {}
+            for key, value in form_data.get("form", {}).items():
+                section_name = key
+                if isinstance(value, dict):
+                    sections[section_name] = value
+
+            # Create expansion panels for each section
+            for section_name, section_data in sections.items():
+                with ui.expansion(
+                    f"{section_name.replace('_', ' ').title()}", value=True
+                ).classes("w-full mb-1"):
+                    for field_name, field_data in section_data.items():
+                        # Create a card for each question
+                        with ui.card().classes("w-full"):
+                            ui.label(field_data.get("ask", "")).classes(
+                                "text-sm font-medium mb-1"
+                            )
+                            if field_data.get("description"):
+                                ui.label(field_data.get("description")).classes(
+                                    "text-x mb-4 text-gray-300"
+                                )
+                            ui.input(placeholder="AI will select").classes("w-full")
+                            if field_data.get("required", False):
+                                ui.label("Recommended input").classes(
+                                    "text-xs mt-2 text-warning "
+                                )
 
     # Right drawer for Options panel
     with ui.right_drawer(top_corner=True, bottom_corner=True).classes(

@@ -1,4 +1,19 @@
-from typing import Dict
+import tomllib
+from pathlib import Path
+from typing import Dict, Any
+
+
+def load_toml_file(path: Path) -> Dict[str, Any]:
+    """Load and parse a TOML file.
+
+    Args:
+        path: Path to the TOML file
+
+    Returns:
+        Dict containing the parsed TOML data
+    """
+    with open(path, "rb") as f:
+        return tomllib.load(f)
 
 
 def add_completed_status(data: Dict) -> Dict:

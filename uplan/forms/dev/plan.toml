@@ -16,73 +16,73 @@ output_structure = [
 # Questions
 # ======================================
 [form.project_basics.overview]
-ask = "Please describe the overview of the project"
+ask = "Project Overview"
 description = "What you are making (app, service, etc.), target platform (web, mobile, desktop, etc.), main users, etc."
 required = true
 
 [form.project_basics.core_functionality]
-ask = "Please describe the core functionality of the project"
+ask = "Core Functionality"
 description = "Implementation methods, user interface, test scenarios, etc."
 required = true
 
 [form.tech_stack.language]
-ask = "Please enter the development language"
+ask = "Development Language"
 description = "Python, TypeScript, Java, Kotlin, etc. (multiple selections possible)"
 required = false
 
 [form.tech_stack.package_manager]
-ask = "Please enter the project package manager"
+ask = "Package Manager"
 description = "npm, pip, bun, uv, etc."
 required = true
 
 [form.tech_stack.frontend]
-ask = "Please enter the frontend framework"
+ask = "Frontend Framework"
 description = "React, Angular, Vue.js, etc. (enter 'None' if not needed)"
 required = true
 
 [form.tech_stack.backend]
-ask = "Please enter the backend framework"
+ask = "Backend Framework"
 description = "Django, Spring Boot, Express, etc. (enter 'None' if not needed)"
 required = true
 
 [form.tech_stack.database]
-ask = "Please enter the database"
+ask = "Database"
 description = "MySQL, PostgreSQL, MongoDB, etc. (enter 'None' if not needed)"
 required = true
 
 [form.tech_stack.test_framework]
-ask = "Please enter the test framework"
+ask = "Test Framework"
 description = "Jest, Mocha, JUnit, etc. (enter 'None' if not needed)"
 required = true
 
 [form.requirements.functional]
-ask = "Please list the functional requirements of the project"
+ask = "Functional Requirements"
 description = "Include the name and details of each function (e.g., User Management - Sign Up, Login, etc.)"
 
 [form.requirements.non_functional]
-ask = "Please list the non-functional requirements of the project"
+ask = "Non-functional Requirements"
 description = "Performance (response time, throughput, etc.), Security (authentication, encryption, etc.), Scalability (increase in user numbers, etc.)"
 
 [form.design.database_schema]
-ask = "Please describe the database schema"
+ask = "Database Schema"
 description = "Main tables and fields (e.g., User - id, username, etc.), relationships between tables, etc. (enter 'None' if not needed)"
 
 [form.design.user_interface]
-ask = "Please enter the details of the user interface"
+ask = "User Interface Details"
 description = "Design principles (intuitiveness, simplicity, etc.), supported platforms (mobile, PC, etc.)"
 
 [form.design.api]
-ask = "Please enter the details of the API interface"
+ask = "API Interface Details"
 description = "API type (REST, GraphQL, etc.), main endpoints (e.g., /users, /products, etc.)"
 
 [form.implementation.testing]
-ask = "Please describe the test plan"
+ask = "Test Plan"
 description = "Unit tests (e.g., user authentication), Integration tests (e.g., Login -> Message Sending), other test types, etc."
 
 [form.implementation.deployment]
-ask = "Please enter the deployment plan"
+ask = "Deployment Plan"
 description = "Deployment environment (cloud provider, server, etc.), CI/CD settings, etc."
 
 [form.implementation.dependencies]
-ask = "Please enter the external dependencies"
+ask = "External Dependencies"
 description = "Libraries, APIs, services to be used (e.g., Firebase, AWS SDK, etc.)"
