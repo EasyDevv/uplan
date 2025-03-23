@@ -203,6 +203,6 @@ pip-selfcheck.json
 input/
 output/
 .clinerules
-test*
+.test*
 .rooignore
 .gradio/certificate.pem
