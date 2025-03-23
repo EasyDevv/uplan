@@ -51,25 +51,19 @@ def create_main_layout(state: AppState) -> None:
                 --depth: 1;
                 --noise: 0;
             }
-  
-            @layer components {
-                .card {
-                    @apply block p-6 transition-all duration-200;
-                    background-color: var(--q-base-200);
-                    border: var(--border) solid var(--q-base-300);
-                    border-radius: var(--radius-box);
-                }
-            }
         </style>
     """)
+    ui.card.default_classes(
+        replace="block p-6 shadow-sm bg-base-200 border-base-300 border-radius-box"
+    )
+
+    ui.button.default_classes(replace="shadow-sm")
 
     # Header with project name and GitHub link
     with ui.header().classes("bg-base-200"):
         with ui.row().classes("w-full justify-between"):
             ui.label("UPlan - Project Planning Assistant").classes("text-xl font-bold")
-            ui.button(
-                icon="home",
-            ).classes("btn bg-secondary")
+            ui.button(icon="home")
 
     # Left drawer for Questions panel
     with ui.left_drawer(top_corner=True, bottom_corner=True).classes(
@@ -85,7 +79,8 @@ def create_main_layout(state: AppState) -> None:
 
     # Main content area for LLM Response
     with ui.column().classes("p-4 bg-base-100 w-full"):
-        with ui.element("div").classes("card w-full"):
+        # with ui.element("div").classes("card w-full"):
+        with ui.card().classes("w-full"):
             ui.label("Generated Content").classes("card-title")
 
     # Footer
