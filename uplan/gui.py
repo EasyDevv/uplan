@@ -41,7 +41,7 @@ def main():
         host="127.0.0.1",
         port=8080,
         reload=True,
-        show=True,
+        show=False,
         dark=True,  # Enable dark mode by default
         # uvicorn_reload_dirs=["uplan\ui"],
     )

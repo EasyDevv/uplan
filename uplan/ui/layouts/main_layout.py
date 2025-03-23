@@ -40,7 +40,7 @@ def create_main_layout(state: AppState) -> None:
 
     # Apply global styles
     ui.add_head_html("""
-        <style>
+        <style type="text/tailwindcss">
             :root {
                 --radius-selector: 0.5rem;
                 --radius-field: 0.25rem;
@@ -51,9 +51,15 @@ def create_main_layout(state: AppState) -> None:
                 --depth: 1;
                 --noise: 0;
             }
-            .btn { border-radius: var(--radius-selector); }
-            .card { border-radius: var(--radius-box); }
-            .input { border-radius: var(--radius-field); }
+  
+            @layer components {
+                .card {
+                    @apply block p-6 transition-all duration-200;
+                    background-color: var(--q-base-200);
+                    border: var(--border) solid var(--q-base-300);
+                    border-radius: var(--radius-box);
+                }
+            }
         </style>
     """)
 
@@ -79,15 +85,8 @@ def create_main_layout(state: AppState) -> None:
 
     # Main content area for LLM Response
     with ui.column().classes("p-4 bg-base-100 w-full"):
-        with ui.card().classes("card w-full h-full"):
+        with ui.element("div").classes("card w-full"):
             ui.label("Generated Content").classes("card-title")
-            # with ui.scroll_area().classes("card-body h`-full"):
-            #     ui.markdown("No plan generated yet...").bind_content_from(
-            #         state, "plan_content"
-            #     )
-            #     ui.markdown("No todo list generated yet...").bind_content_from(
-            #         state, "todo_content"
-            #     )
 
     # Footer
     with ui.footer().classes(
