@@ -14,110 +14,83 @@ def create_main_layout(state: AppState) -> None:
     Args:
         state: Application state instance
     """
+    ui.colors(
+        primary="oklch(58% 0.233 277.117)",
+        secondary="oklch(65% 0.241 354.308)",
+        accent="oklch(77% 0.152 181.912)",
+        dark="oklch(14% 0.005 285.823)",
+        dark_page="oklch(25.33% 0.016 252.42)",
+        positive="oklch(76% 0.177 163.223)",
+        negative="oklch(71% 0.194 13.428)",
+        info="oklch(74% 0.16 232.661)",
+        warning="oklch(82% 0.189 84.429)",
+        base_100="oklch(25.33% 0.016 252.42)",
+        base_200="oklch(23.26% 0.014 253.1)",
+        base_300="oklch(21.15% 0.012 254.09)",
+        base_content="oklch(97.807% 0.029 256.847)",
+        primary_content="oklch(96% 0.018 272.314)",
+        secondary_content="oklch(94% 0.028 342.258)",
+        accent_content="oklch(38% 0.063 188.416)",
+        neutral_content="oklch(92% 0.004 286.32)",
+        info_content="oklch(29% 0.066 243.157)",
+        success_content="oklch(37% 0.077 168.94)",
+        warning_content="oklch(41% 0.112 45.904)",
+        error_content="oklch(27% 0.105 12.094)",
+    )
+
     # Apply global styles
     ui.add_head_html("""
         <style>
-            /* DaisyUI Theme System */
             :root {
-                /* Base Colors */
-                --color-base-100: oklch(25.33% 0.016 252.42);
-                --color-base-200: oklch(23.26% 0.014 253.1);
-                --color-base-300: oklch(21.15% 0.012 254.09);
-                --color-base-content: oklch(97.807% 0.029 256.847);
-
-                /* Theme Colors */
-                --color-primary: oklch(58% 0.233 277.117);
-                --color-primary-content: oklch(96% 0.018 272.314);
-                --color-secondary: oklch(65% 0.241 354.308);
-                --color-secondary-content: oklch(94% 0.028 342.258);
-                --color-accent: oklch(77% 0.152 181.912);
-                --color-accent-content: oklch(38% 0.063 188.416);
-                --color-neutral: oklch(14% 0.005 285.823);
-                --color-neutral-content: oklch(92% 0.004 286.32);
-
-                /* Design Tokens */
-                --radius-box: 0.5rem;
+                --radius-selector: 0.5rem;
                 --radius-field: 0.25rem;
-                --border-width: 1px;
+                --radius-box: 0.5rem;
+                --size-selector: 0.25rem;
+                --size-field: 0.25rem;
+                --border: 1px;
                 --depth: 1;
+                --noise: 0;
             }
-
-            /* Base styles */
-            body {
-                background-color: var(--color-base-100);
-                color: var(--color-base-content);
-            }
-
-            /* Typography */
-            h1, h2, h3, h4, h5, h6 {
-                color: var(--color-base-content);
-            }
-
-            /* Components */
-            .response-card {
-                background-color: var(--color-base-200);
-                border: var(--border-width) solid var(--color-base-300);
-                border-radius: var(--radius-box);
-                box-shadow: 0 calc(var(--depth) * 2px) calc(var(--depth) * 4px) rgba(0, 0, 0, 0.1);
-            }
-
-            /* Interactive Elements */
-            .q-btn {
-                background-color: var(--color-primary) !important;
-                color: var(--color-primary-content) !important;
-                border-radius: var(--radius-field);
-                transition: all 0.2s ease;
-            }
-            .q-btn:hover {
-                background-color: var(--color-secondary) !important;
-                color: var(--color-secondary-content) !important;
-                transform: translateY(-1px);
-            }
+            .btn { border-radius: var(--radius-selector); }
+            .card { border-radius: var(--radius-box); }
+            .input { border-radius: var(--radius-field); }
         </style>
     """)
 
     # Header with project name and GitHub link
-    with ui.header().classes(
-        "bg-[var(--color-base-200)] text-[var(--color-base-content)]"
-    ):
-        with ui.row().classes("w-full items-center justify-between p-4"):
-            ui.label("UPlan - Project Planning Assistant").classes(
-                "text-xl font-bold text-[var(--color-base-content)]"
-            )
+    with ui.header().classes("bg-base-200"):
+        with ui.row().classes("w-full justify-between"):
+            ui.label("UPlan - Project Planning Assistant").classes("text-xl font-bold")
             ui.button(
-                icon="mdi-github",
-            ).classes("text-white")
+                icon="home",
+            ).classes("btn bg-secondary")
 
     # Left drawer for Questions panel
     with ui.left_drawer(top_corner=True, bottom_corner=True).classes(
-        "bg-[var(--color-base-200)] w-64 p-4 border-r border-[var(--color-base-300)]"
+        "drawer-side bg-base-200 w-64"
     ):
-        ui.label("Questions").classes("text-xl font-bold mb-4")
+        ui.label("Questions").classes("drawer-title text-xl font-bold")
 
     # Right drawer for Options panel
     with ui.right_drawer(top_corner=True, bottom_corner=True).classes(
-        "bg-[var(--color-base-200)] w-64 p-4 border-l border-[var(--color-base-300)]"
+        "drawer-side bg-base-200 w-64"
     ):
-        ui.label("Options").classes("text-xl font-bold mb-4")
+        ui.label("Options").classes("drawer-title text-xl font-bold")
 
     # Main content area for LLM Response
-    with ui.column().classes("w-full p-4 flex-grow"):
-        with ui.card().classes(
-            "response-card w-full h-full bg-[var(--color-base-200)]"
-        ):
-            ui.label("Generated Content").classes(
-                "text-xl font-bold mb-4 text-[var(--color-base-content)]"
-            )
-            with ui.scroll_area().classes("h-full"):
-                ui.markdown("No plan generated yet...").bind_content_from(
-                    state, "plan_content"
-                )
-                ui.markdown("No todo list generated yet...").bind_content_from(
-                    state, "todo_content"
-                )
+    with ui.column().classes("p-4 bg-base-100 w-full"):
+        with ui.card().classes("card w-full h-full"):
+            ui.label("Generated Content").classes("card-title")
+            # with ui.scroll_area().classes("card-body h`-full"):
+            #     ui.markdown("No plan generated yet...").bind_content_from(
+            #         state, "plan_content"
+            #     )
+            #     ui.markdown("No todo list generated yet...").bind_content_from(
+            #         state, "todo_content"
+            #     )
 
     # Footer
     with ui.footer().classes(
-        "bg-[var(--color-base-200)] text-[var(--color-neutral-content)] border-t border-[var(--color-base-300)] flex justify-center items-center p-2"
+        "footer footer-center bg-base-200 text-base-content border-t border-base-300 p-2"
     ):
         ui.label("© 2025 UPlan").classes("text-sm")
