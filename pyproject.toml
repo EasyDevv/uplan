@@ -15,16 +15,15 @@ classifiers = [
 ]
 dependencies = [
     "litellm>=1.63.6",
-    "rich>=13.9.4",
-    "tomli-w>=1.2.0",
-    "click",
-    "fastapi>=0.115.11",
-    "uvicorn[standard]>=0.34.0",
+ "rich>=13.9.4",
+ "tomli-w>=1.2.0",
+ "click",
+ "nicegui>=2.13.0",
 ]
 dynamic = ["version"]
 
 [dependency-groups]
-dev = ["pytest", "arel"]
+dev = ["arel", "pytest-playwright"]
 
 [project.urls]
 source = "https://github.com/easydevv/uplan"
@@ -38,3 +37,9 @@ packages = ["uplan"]
 [tool.setuptools_scm]
 version_scheme = "post-release"
 local_scheme = "no-local-version"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "e2e: marks tests as end-to-end tests (deselect with '-m \"not e2e\"')",
+]

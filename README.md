@@ -220,3 +220,89 @@ See the [LICENSE](LICENSE) file for more details.
 Made with ❤️ by [EasyDev](https://github.com/easydevv)
 
 </div>
+
+# UPlan
+
+A Python package for generating planning documents and TODO lists using LLMs.
+
+## Features
+
+- Generate project plans using LLM assistance
+- Create structured TODO lists in TOML format
+- Web interface with streaming LLM responses
+- CLI tool for quick access
+
+## Installation
+
+```bash
+pip install uplan
+```
+
+## Usage
+
+### Command Line
+
+```bash
+# Generate a plan
+uplan plan "My project name" "Project description"
+
+# Generate a TODO list from existing plan
+uplan todo --plan-file ./my-plan.toml
+```
+
+### Web Interface
+
+```bash
+# Start the web server
+uplan serve
+```
+
+Then open your browser to http://localhost:8000
+
+## Development
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/easydevv/uplan
+cd uplan
+
+# Install development dependencies
+uv pip install -e ".[dev]"
+```
+
+### Running Tests
+
+```bash
+# Run unit tests
+pytest tests
+
+# Run E2E tests (requires running server)
+# In terminal 1:
+uvicorn uplan.app:app --reload
+
+# In terminal 2:
+pytest tests/e2e -m e2e
+```
+
+### End-to-End Testing
+
+UPlan uses Playwright for E2E testing. To set up:
+
+```bash
+# Install Playwright
+uv pip install playwright pytest-playwright
+playwright install
+
+# Run E2E tests with UI
+pytest tests/e2e -v --browser chromium --headless=false
+
+# Run E2E tests in different browsers
+pytest tests/e2e -v --browser firefox
+pytest tests/e2e -v --browser webkit
+```
+
+## License
+
+MIT
