@@ -42,6 +42,7 @@ def main():
         port=8080,
         reload=True,
         show=False,
+        # prod_js=False,
         dark=True,  # Enable dark mode by default
         # uvicorn_reload_dirs=["uplan\ui"],
     )
