@@ -2,8 +2,8 @@
 
 from nicegui import app, ui
 
-from uplan.ui.layouts.main_layout import create_main_layout
-from uplan.ui.services.llm_service import LLMService
+from uplan.ui.layouts.main import create_main_layout
+from uplan.ui.services.llm import LLMService
 from uplan.ui.state import AppState
 from uplan.utils.provider import setup_env
 
@@ -22,10 +22,6 @@ def init_app() -> None:
     # Initialize services
     llm_service = LLMService(state)
 
-    # Configure app settings
-    app.title = "UPlan"
-    app.favicon = "https://nicegui.io/favicon.ico"  # TODO: Replace with custom favicon
-
     # Create UI layout
     create_main_layout(state)
 
@@ -42,9 +38,7 @@ def main():
         port=8080,
         reload=True,
         show=False,
-        # prod_js=False,
-        dark=True,  # Enable dark mode by default
-        # uvicorn_reload_dirs=["uplan\ui"],
+        dark=True,
     )
 
 
