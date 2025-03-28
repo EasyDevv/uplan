@@ -169,8 +169,9 @@ def log_function_event(
     elif event_type == "error":
         error_msg = f"❌ Error in {prefix}{call_info['function']}:"
         details = str(error)
+        tb_str = traceback.format_exc()
         console.print(
-            f"{error_msg}\n           {details}",
+            f"{error_msg}\n{details}\n{tb_str}",
             style="bold red",
         )
         log_structured(
@@ -179,7 +180,7 @@ def log_function_event(
             status="error",
             execution_time=elapsed,
             error=str(error),
-            traceback=traceback.format_exc(),
+            traceback=tb_str,
             is_async=is_async,
         )
 
@@ -192,10 +193,11 @@ def setup_logging(level: Optional[int] = None) -> logging.Logger:
     logger = logging.getLogger("uplan")
     logger.setLevel(log_level)
 
+    # Clear existing handlers
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # Console handler
+    # Console handler with rich formatting
     console_handler = RichHandler(
         rich_tracebacks=True,
         markup=True,
@@ -206,9 +208,8 @@ def setup_logging(level: Optional[int] = None) -> logging.Logger:
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(console_handler)
 
-    # File handler
-    today = datetime.now().strftime("%Y%m%d")
-    log_file = LOG_DIR / f"uplan_{today}.log"
+    # JSON file handler for structured logging
+    log_file = LOG_DIR / f"uplan_{datetime.now().strftime('%Y%m%d')}.log"
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(log_level)
     file_handler.setFormatter(JSONFormatter(LOG_FORMAT))
@@ -282,7 +283,6 @@ def log_async_function(func: Callable) -> Callable:
 @contextmanager
 def LogContext(context_name: str):
     """Context manager for tracking logical blocks of code."""
-    logger = get_logger()
     console.print(f"⏺ Starting context: {context_name}", style="cyan")
     log_structured("context_entry", context=context_name)
 
@@ -301,16 +301,17 @@ def LogContext(context_name: str):
         )
     except Exception as e:
         elapsed = time.time() - start_time
-        error_msg = f"❌ Error in context {context_name}:"
-        details = str(e)
-        console.print(f"{error_msg}\n           {details}", style="bold red")
+        tb = traceback.format_exc()
+        console.print(
+            f"❌ Error in context {context_name}:\n{str(e)}\n{tb}", style="bold red"
+        )
         log_structured(
             "context_error",
             context=context_name,
             status="error",
             execution_time=elapsed,
             error=str(e),
-            traceback=traceback.format_exc(),
+            traceback=tb,
         )
         raise
 
@@ -438,94 +439,40 @@ def log_command(cmd_args: list) -> None:
 
 
 def log_error(error: Exception, module: Optional[str] = None) -> None:
-    """Log an error with full traceback and save detailed error report.
-
-    This function:
-    1. Logs the error to the standard log file
-    2. Creates a detailed error report file with complete traceback information
-    3. Captures exception chain and local variables state
-    """
+    """Log an error with full traceback."""
     logger = get_logger()
     error_time = datetime.now()
-
-    # Get detailed traceback information
     tb = traceback.format_exc()
-    tb_entries = traceback.extract_tb(error.__traceback__)
 
-    # Log to console and standard log
-    error_msg = "❌ [bold red]Error:[/bold red]"
-    details = str(error)
-    console.print(f"{error_msg}\n           {details}\n{tb}", style="red")
+    # Log to console with full traceback
+    console.print(f"❌ Error: {str(error)}\n{tb}", style="bold red")
+
+    # Log to structured log
     log_structured(
         "error", message=str(error), module=module or "unknown", traceback=tb
     )
 
-    # Create detailed error report
+    # Create detailed error report file
     error_dir = LOG_DIR / "errors"
     error_dir.mkdir(exist_ok=True)
-
     error_filename = (
         f"error_{error_time.strftime('%Y%m%d_%H%M%S')}_{module or 'unknown'}.log"
     )
     error_file = error_dir / error_filename
 
     with open(error_file, "w") as f:
-        f.write("===== uPlan Error Report =====\n\n")
+        f.write(f"=== uPlan Error Report ===\n")
         f.write(f"Timestamp: {error_time.isoformat()}\n")
         f.write(f"Module: {module or 'unknown'}\n")
-        f.write(f"Error Type: {error.__class__.__name__}\n")
-        f.write(f"Error Message: {str(error)}\n\n")
-
-        f.write("=== Full Traceback ===\n")
-        f.write(tb)
-        f.write("\n")
-
-        f.write("=== Detailed Stack Trace ===\n")
-        for filename, line, func, text in tb_entries:
-            f.write(f"File: {filename}\n")
-            f.write(f"Line: {line}\n")
-            f.write(f"Function: {func}\n")
-            f.write(f"Code: {text}\n")
-            if func and text:  # Get local variables if available
-                try:
-                    frame = next(
-                        (
-                            tb_frame
-                            for tb_frame in traceback.walk_tb(error.__traceback__)
-                            if tb_frame.f_code.co_name == func
-                        ),
-                        None,
-                    )
-                    if frame:
-                        local_vars = frame.f_locals
-                        f.write("Local Variables:\n")
-                        for var_name, var_value in local_vars.items():
-                            # Skip special variables and functions
-                            if not var_name.startswith("__"):
-                                try:
-                                    var_str = repr(var_value)
-                                    if len(var_str) > 200:  # Truncate long values
-                                        var_str = var_str[:200] + "..."
-                                    f.write(f"  {var_name} = {var_str}\n")
-                                except Exception:
-                                    f.write(f"  {var_name} = <unprintable value>\n")
-                except Exception as e:
-                    f.write(f"Error getting local variables: {str(e)}\n")
-            f.write("-" * 50 + "\n")
+        f.write(f"Error: {error.__class__.__name__}: {str(error)}\n\n")
+        f.write(f"=== Traceback ===\n{tb}\n")
 
         # Include exception chain if present
         if error.__cause__:
-            f.write("\n=== Exception Chain ===\n")
+            f.write("\n=== Cause Chain ===\n")
             cause = error.__cause__
             while cause:
-                f.write(f"\nCaused by: {cause.__class__.__name__}: {str(cause)}\n")
-                cause_tb = traceback.extract_tb(cause.__traceback__)
-                for filename, line, func, text in cause_tb:
-                    f.write(f"  File: {filename}\n")
-                    f.write(f"  Line: {line}\n")
-                    f.write(f"  Function: {func}\n")
-                    f.write(f"  Code: {text}\n")
-                    f.write("  " + "-" * 48 + "\n")
+                f.write(f"{cause.__class__.__name__}: {str(cause)}\n")
                 cause = cause.__cause__
 
-    console.print(f"📝 Detailed error report saved to: {error_file}", style="yellow")
+    console.print(f"📝 Error report: {error_file}", style="yellow")
