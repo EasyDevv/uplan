@@ -1,54 +1,29 @@
 """Main GUI entry point for uplan.
 
-Initializes the application with centralized state management.
+Provides the GUI interface through NiceGUI framework.
 """
 
-from nicegui import app, ui
+from nicegui import ui
 
-from uplan.ui.layouts.main import create_main_layout
-from uplan.ui.services.llm import LLMService
-from uplan.ui.services.state_service import StateService
-from uplan.ui.services.stream_service import StreamService
-from uplan.ui.state import AppState
-from uplan.utils.provider import setup_env
+from uplan.app import create_app
 
 
-def init_app() -> None:
-    """Initialize the NiceGUI application.
+# Create application instance
+app = create_app()
 
-    Sets up the application state, services, and UI components.
-    Implements centralized state management through StateService.
+
+def init_gui() -> None:
+    """Initialize the GUI interface.
+
+    Sets up the UI components using centralized application instance.
     """
-    # Initialize environment
-    setup_env()
-
-    # Setup services with singleton state
-    # Initialize services dictionary if it doesn't exist
-    if not hasattr(app, "services"):
-        app.services = {}
-
-    # Create and register services
-    state_service = StateService()  # This creates/gets AppState singleton
-    stream_service = StreamService(state_service.state.stream_controller)
-    llm_service = LLMService(state_service.state, stream_service)
-    app.services.update(
-        {"state": state_service, "llm": llm_service, "stream": stream_service}
-    )
-
-    # Create UI layout
-    create_main_layout(state_service.state)
+    # Run GUI with default configuration
+    app.run_gui()
 
 
 def main():
     """Main entry point for the GUI application."""
-    init_app()
-    ui.run(
-        title="UPlan",
-        favicon="✅",
-        reload=True,
-        show=False,
-        dark=True,
-    )
+    init_gui()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
