@@ -34,7 +34,6 @@ def main():
     init_app()
     ui.run(
         title="UPlan",
-        favicon="✅",
         reload=True,
         show=False,
         dark=True,

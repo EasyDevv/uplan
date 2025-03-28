@@ -1,29 +1,21 @@
-"""Application state management."""
-
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from pathlib import Path
 
 
 @dataclass
 class AppState:
-    """Application state container.
+    """Application state management.
 
-    Manages global application state including:
-    - Model configuration
-    - Processing status
-    - Error states
-    - LLM response data
+    Manages the state of the application including input form data,
+    LLM responses, and processing status.
     """
 
-    # Model configuration
-    model: str = "ollama/qwq"
-    input_path: str = "./input"
-    output_path: str = "./output"
-    retry: int = 5
-
-    # Processing state
+    current_input: dict = field(default_factory=dict)
+    llm_response: dict | None = None
     processing: bool = False
-    error_message: Optional[str] = None
-
-    # Response data
-    llm_response: Dict = field(default_factory=dict)
+    output_path: Path = field(default_factory=lambda: Path("./output"))
+    form_category: str = "dev"
+    model: str = "ollama/qwq"
+    error_message: str | None = None
+    plan_content: str = "No plan generated yet..."
+    todo_content: str = "No todo list generated yet..."

@@ -2,7 +2,6 @@
 
 import asyncio
 from pathlib import Path
-from typing import Callable, Optional
 
 from uplan.process import get_all
 from uplan.ui.state import AppState
@@ -11,7 +10,7 @@ from uplan.ui.state import AppState
 class LLMService:
     """Service for handling LLM interactions.
 
-    Wraps the LLM processing functions in asynchronous methods
+    Wraps the synchronous LLM processing functions in asynchronous methods
     suitable for use with NiceGUI.
     """
 
@@ -23,25 +22,19 @@ class LLMService:
         """
         self.state = state
 
-    async def process_request(
-        self,
-        stream_handler: Optional[Callable[[str], None]] = None,
-    ) -> None:
-        """Process the LLM request asynchronously.
-
-        Args:
-            stream_handler: Optional callback for handling streaming updates
-        """
+    async def process_request(self) -> None:
+        """Process the LLM request asynchronously."""
         try:
             self.state.processing = True
             self.state.error_message = None
 
-            plan_response, todo_response = await get_all(
-                input_folder=Path(self.state.input_path),
-                output_folder=Path(self.state.output_path),
-                model=self.state.model,
-                retry=5,  # Default retry count
-                stream_handler=stream_handler,
+            # Run the synchronous process in a thread pool
+            plan_response, todo_response = await asyncio.to_thread(
+                get_all,
+                Path("./input"),
+                self.state.output_path,
+                self.state.model,
+                5,  # Default retry count
             )
 
             if plan_response.get("status") in ["exit", "error"]:

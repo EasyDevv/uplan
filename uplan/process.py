@@ -4,7 +4,6 @@ Module for processing and generating development plans and to-do lists using LLM
 
 import json
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple
 
 import litellm
 import tomli_w
@@ -23,7 +22,7 @@ from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 
 
-async def run(
+def run(
     prompt_title: str,
     extracted_title: str,
     output_file: str,
@@ -33,10 +32,8 @@ async def run(
     model: str = None,
     stream: bool = True,
     debug: bool = False,
-    stream_handler: Optional[Callable[[str], Any]] = None,
     **litellm_kwargs,
 ) -> dict:
-    """Run LLM inference with streaming support."""
     display_json_panel(prompt, title=prompt_title, border_style="green")
 
     optimized_prompt = dict_to_xml(prompt)
@@ -45,43 +42,44 @@ async def run(
     if debug:
         display_text_panel(optimized_prompt, title=prompt_title, border_style="green")
 
-    async def process_stream(response: AsyncIterator[Any]) -> str:
-        """Process streaming response and update UI."""
-        full_text = ""
-        async for chunk in response:
-            if chunk and chunk.choices and chunk.choices[0].delta.content:
-                text_chunk = chunk.choices[0].delta.content
-                full_text += text_chunk
-                if stream_handler:
-                    await stream_handler(full_text)
-        return full_text
-
     for attempt in range(1, max_retries + 1):
         try:
-            response = await litellm.acompletion(
+            response = litellm.completion(
                 model=model,
                 messages=[{"content": optimized_prompt, "role": "user"}],
                 stream=stream,
                 **litellm_kwargs,
             )
 
-            text = (
-                await process_stream(response)
-                if stream
-                else response.choices[0].message.content
-            )
+            text = display_streaming(response)
             dict_block = extract_code_block(text)
             json_block = json.loads(dict_block)
 
             if validate_model:
                 validate_model.model_validate(json_block)
 
+            # display_json_panel(json_block, title=extracted_title, border_style="green")
+
             Path(output_file).parent.mkdir(parents=True, exist_ok=True)
             with open(output_file, "wb") as f:
                 tomli_w.dump(json_block, f)
 
-            return {"status": "success", "data": json_block, "output_file": output_file}
+            open_file(output_file)
 
+            answer = select_option(
+                text="Please review the generated document [dim]\n- Complete: Enter or Y \n- Regenerate: R \n- Exit: X[dim]",
+                choices=["y", "r", "x"],
+            )
+
+            if answer.lower() == "r":
+                display_text_panel(text="Regenerating document. Retrying...")
+                continue
+            elif answer.lower() == "x":
+                display_text_panel(text="Exiting process.")
+
+                return {"status": "exit", "data": None, "output_file": output_file}
+
+            return {"status": "success", "data": json_block, "output_file": output_file}
         except json.JSONDecodeError as je:
             display_text_panel(text=f"Invalid JSON format: {je}")
         except Exception as e:
@@ -93,12 +91,11 @@ async def run(
     raise Exception("Max retries exceeded")
 
 
-async def get_plan(
+def get_plan(
     output_folder: Path,
     model: str,
     retry: int,
     answers_data: dict,
-    stream_handler: Optional[Callable[[str], Any]] = None,
     **litellm_kwargs,
 ) -> dict:
     """
@@ -108,22 +105,21 @@ async def get_plan(
         output_folder: Path where generated plan will be saved
         model: Name of the LLM model to use
         retry: Number of retry attempts
-        answers_data: Pre-collected answers
-        stream_handler: Optional callback for streaming updates
+        answers: Pre-collected answers (for non-CLI usage)
         **litellm_kwargs: Additional arguments for litellm
 
     Returns:
         dict: Response containing status and generated plan data
     """
+
     try:
-        response = await run(
+        response = run(
             prompt=answers_data,
             model=model,
             prompt_title="Plan Prompt",
             extracted_title="Extracted Plan Data",
             output_file=str(output_folder / "plan.toml"),
             max_retries=retry,
-            stream_handler=stream_handler,
             **litellm_kwargs,
         )
         return response
@@ -132,17 +128,17 @@ async def get_plan(
         return {"status": "error", "message": str(e)}
 
 
-async def get_todo(
+def get_todo(
     output_folder: Path,
     model: str,
     retry: int,
     todo: dict,
-    stream_handler: Optional[Callable[[str], Any]] = None,
     **litellm_kwargs,
 ) -> dict:
     """Execute todo generation process."""
+
     try:
-        response = await run(
+        response = run(
             prompt=todo,
             model=model,
             prompt_title="To-Do Prompt",
@@ -150,7 +146,6 @@ async def get_todo(
             output_file=str(output_folder / "todo.toml"),
             max_retries=retry,
             validate_model=TodoModel,
-            stream_handler=stream_handler,
             **litellm_kwargs,
         )
 
@@ -174,14 +169,14 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     Read and merge todo and plan TOML files.
 
     Args:
-        input_folder: Path to the input folder containing todo.toml
-        output_folder: Path to the output folder containing plan.toml
+        input_folder: Path to the input folder containing todo.toml.
+        output_folder: Path to the output folder containing plan.toml.
 
     Returns:
-        dict: Merged todo dictionary with plan data
+        dict: Merged todo dictionary with plan data.
 
     Raises:
-        RuntimeError: If required TOML files are not found
+        RuntimeError: If required TOML files are not found.
     """
     try:
         with open(input_folder / "todo.toml", "rb") as f:
@@ -195,16 +190,14 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     return todo
 
 
-def prepare_answers(input_folder: Path) -> dict:
+def prepare_answers_cli(input_folder: Path) -> tuple[dict, dict]:
     """
     Read and validate the plan form from input folder.
-
     Args:
         input_folder: Path to the input folder containing plan.toml
-
     Returns:
-        dict: The answers data dictionary
-
+        tuple[dict, dict]: Tuple containing (questions, form)
+            where questions is the full questions dict and form is the form section
     Raises:
         RuntimeError: If plan.toml is missing or form section is not found
     """
@@ -214,43 +207,36 @@ def prepare_answers(input_folder: Path) -> dict:
     except FileNotFoundError:
         raise RuntimeError(f"Failed to read plan.toml in {input_folder}")
 
-    # form = answers_data.get("form")
-    # if form is None:
-    #     raise RuntimeError("No form found in plan.toml")
+    form = answers_data.get("form")
+    if form is None:
+        raise RuntimeError("No form found in plan.toml")
+
+    form, only_answers = collect_answers_cli(form)
+
+    answers_data.update({"user_input": only_answers, "form": form})
 
     return answers_data
 
 
-async def get_all(
+def get_all(
     input_folder: Path,
     output_folder: Path,
     model: str,
     retry: int,
-    stream_handler: Optional[Callable[[str], Any]] = None,
     **litellm_kwargs,
-) -> Tuple[dict, dict]:
-    """Generate both plan and todo documents in sequence with streaming support."""
+) -> tuple[dict, dict]:
+    """Generate both plan and todo documents in sequence."""
     # Generate plan first
-    answers_data = prepare_answers(input_folder)
-    plan_response = await get_plan(
-        output_folder=output_folder,
-        model=model,
-        retry=retry,
-        answers_data=answers_data,
-        stream_handler=stream_handler,
-        **litellm_kwargs,
+    answers_data = prepare_answers_cli(input_folder)
+    plan_response = get_plan(
+        input_folder, output_folder, model, retry, answers_data, **litellm_kwargs
     )
     if plan_response.get("status") in ["exit", "error"]:
         return plan_response, {"status": "skipped"}
 
     # Generate todo using the created plan
     todo = prepare_todo(input_folder, output_folder)
-    todo_response = await get_todo(
-        output_folder=output_folder,
-        model=model,
-        retry=retry,
-        todo=todo,
-        stream_handler=stream_handler,
-        **litellm_kwargs,
+    todo_response = get_todo(
+        input_folder, output_folder, model, retry, todo, **litellm_kwargs
     )
     return plan_response, todo_response
