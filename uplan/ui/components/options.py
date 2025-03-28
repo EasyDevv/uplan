@@ -131,9 +131,8 @@ def create_options() -> None:
                         )
 
                         # Process request with streaming
-                        stream_id = await llm_service.process_request(
-                            operation_type=operation_type
-                        )
+                        # Pass the operation type through state instead of as a parameter
+                        stream_id = await llm_service.process_request()
 
                         if stream_id:
                             print(f"Stream ID received: {stream_id}")
