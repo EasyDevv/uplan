@@ -37,7 +37,7 @@ def create_options() -> None:
     if not hasattr(ui.page, "_storage"):
         ui.page._storage = {}
 
-    with ui.element("div").classes("w-[25%] max-w-xs bg-base-200 p-4"):
+    with ui.element("div").classes("min-w-[20%] max-w-xs bg-base-200 p-4"):
         ui.label("Options").classes("text-xl font-bold p-1")
 
         # Create a scrollable container for options
@@ -74,10 +74,14 @@ def create_options() -> None:
                     try:
                         loading_indicator.classes("visible")
 
-                        # Get stream handler from content component
-                        handle_stream_update = ui.page._storage.get(
-                            "handle_stream_update"
-                        )
+                        # Get stream handler from content component with safe fallback
+                        storage = getattr(ui.page, "_storage", {})
+                        handle_stream_update = storage.get("handle_stream_update")
+                        if not handle_stream_update:
+                            ui.notify(
+                                "Warning: Stream handler not initialized",
+                                type="warning",
+                            )
 
                         # Generate plan using planner service
                         success, message = await planner_service.generate_plan(

@@ -64,7 +64,11 @@ async def run(
                 text_chunk = chunk.choices[0].delta.content
                 full_text += text_chunk
                 if stream_handler:
-                    await stream_handler(full_text)
+                    try:
+                        await stream_handler(full_text)
+                    except TypeError:
+                        # Handle the case when stream_handler doesn't return an awaitable
+                        pass
         return full_text
 
     for attempt in range(1, max_retries + 1):
@@ -97,7 +101,7 @@ async def run(
             display_text_panel(text=f"Invalid JSON format: {je}")
         except Exception as e:
             logging.error(f"Error processing response: {traceback.format_exc()}")
-            raise e
+            raise traceback.format_exc()
             # display_text_panel(text=f"Error processing response: {e}")
         if attempt < max_retries:
             display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
