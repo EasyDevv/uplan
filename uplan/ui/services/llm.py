@@ -6,6 +6,8 @@ from typing import Callable, Optional
 
 from uplan.process import get_all
 from uplan.ui.state import AppState
+from uplan.ui.services.stream_service import StreamService
+from uplan.utils.reactive import ReactiveStream
 
 
 class LLMService:
@@ -15,28 +17,49 @@ class LLMService:
     suitable for use with NiceGUI.
     """
 
-    def __init__(self, state: AppState):
+    def __init__(self, state: AppState, stream_service: StreamService):
         """Initialize the LLM service.
 
         Args:
             state: Application state instance
+            stream_service: Service for managing streams
         """
         self.state = state
+        self.stream_service = stream_service
         self._current_task: Optional[asyncio.Task] = None
+        self._request_id = 0
 
     async def _reset_state(self) -> None:
         """Reset processing state."""
         self.state.processing = False
         self.state.stream_controller.reset()
 
-    async def process_request(
-        self,
-        stream_handler: Optional[Callable[[str], None]] = None,
-    ) -> None:
+    async def process_request(self) -> str:
         """Process the LLM request asynchronously.
 
+        Returns:
+            The stream ID that can be used to subscribe to updates
+        """
+        self._request_id += 1
+        stream_id = f"llm_stream_{self._request_id}"
+        stream = self.stream_service.create_stream(stream_id)
+
+        async def stream_handler(text: str) -> None:
+            await stream.push(text)
+
+        self._current_task = asyncio.create_task(
+            self._run_llm_process(stream, stream_handler)
+        )
+        return stream_id
+
+    async def _run_llm_process(
+        self, stream: ReactiveStream, stream_handler: Callable
+    ) -> None:
+        """Run the LLM process and handle streaming updates.
+
         Args:
-            stream_handler: Optional callback for handling streaming updates
+            stream: Reactive stream for updates
+            stream_handler: Callback for handling streaming updates
         """
         try:
             await self._reset_state()
@@ -81,3 +104,4 @@ class LLMService:
         finally:
             self.state.processing = False
             self._current_task = None
+            stream.complete()

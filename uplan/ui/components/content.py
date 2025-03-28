@@ -6,6 +6,7 @@ from asyncio import Lock
 from nicegui import ui
 from typing_extensions import Any
 from uplan.ui.state import AppState  # Add import for AppState
+from uplan.ui.services.stream_service import StreamService
 
 
 class ContentManager:
@@ -127,7 +128,7 @@ async def handle_stream_update(
         await ui.page._content_manager.update(container, text, is_complete)
 
 
-def create_content() -> None:
+def create_content(stream_service: StreamService) -> None:
     """Create the main content area for displaying generated content."""
     with ui.element("div").classes(
         "flex flex-1 bg-base-100 p-4 scroll-container overflow-y-auto"
@@ -149,3 +150,11 @@ def create_content() -> None:
                 ),
             }
         )
+
+        async def on_stream_created(stream_id: str) -> None:
+            with content_container:
+                card = ui.card().classes("w-full mb-4 h-auto")
+                new_content = ui.markdown("").classes(
+                    "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow"
+                )
+                await stream_service.bind_to_ui_element(stream_id, new_content)

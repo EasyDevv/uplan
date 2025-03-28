@@ -8,6 +8,7 @@ from nicegui import app, ui
 from uplan.ui.layouts.main import create_main_layout
 from uplan.ui.services.llm import LLMService
 from uplan.ui.services.state_service import StateService
+from uplan.ui.services.stream_service import StreamService
 from uplan.ui.state import AppState
 from uplan.utils.provider import setup_env
 
@@ -28,8 +29,11 @@ def init_app() -> None:
 
     # Create and register services
     state_service = StateService()  # This creates/gets AppState singleton
-    llm_service = LLMService(state_service.state)
-    app.services.update({"state": state_service, "llm": llm_service})
+    stream_service = StreamService(state_service.state.stream_controller)
+    llm_service = LLMService(state_service.state, stream_service)
+    app.services.update(
+        {"state": state_service, "llm": llm_service, "stream": stream_service}
+    )
 
     # Create UI layout
     create_main_layout(state_service.state)

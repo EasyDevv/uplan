@@ -1,11 +1,12 @@
 """Options panel component for the right sidebar."""
 
 from pathlib import Path
-from nicegui import ui
+from nicegui import ui, app
 
 from uplan.utils.provider import check_model_support
 from uplan.ui.services.llm import LLMService
 from uplan.ui.services.planner import PlannerService
+from uplan.ui.services.stream_service import StreamService
 from uplan.ui.state import AppState
 
 
@@ -30,7 +31,12 @@ def create_options() -> None:
     """Create the options panel in the right sidebar."""
     # Initialize application state
     state = AppState()
-    llm_service = LLMService(state)
+
+    # Get the services from app.services
+    llm_service = app.services.get("llm")
+    stream_service = app.services.get("stream")
+
+    # Create planner service if needed
     planner_service = PlannerService(state, llm_service)
 
     # Initialize storage if needed
@@ -69,73 +75,98 @@ def create_options() -> None:
                 # Loading indicator
                 loading_indicator = ui.spinner("dots").classes("hidden")
 
-                async def on_plan_click() -> None:
-                    """Handle plan button click."""
+                async def connect_to_stream(stream_id: str, operation_type: str):
+                    """Connect to a stream by ID and display results.
+
+                    Args:
+                        stream_id: The ID of the stream to connect to
+                        operation_type: The type of operation being performed
+                    """
+                    storage = getattr(ui.page, "_storage", {})
+                    stream_display = storage.get("stream_display")
+
+                    if not stream_display:
+                        ui.notify("Stream display area not found", type="warning")
+                        return
+
+                    # Create new card and bind it to the stream
+                    with stream_display:
+                        with ui.card().classes("w-full mb-4 h-auto"):
+                            ui.label(
+                                f"Generated {operation_type} - Processing..."
+                            ).classes("card-title")
+                            content = ui.markdown("").classes(
+                                "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow"
+                            )
+                            # Log connection attempt to help with debugging
+                            print(
+                                f"Connecting to stream: {stream_id} for {operation_type}"
+                            )
+                            await stream_service.bind_to_ui_element(stream_id, content)
+
+                async def process_operation(
+                    operation_type: str, display_name: str
+                ) -> None:
+                    """Process an operation with the LLM.
+
+                    Args:
+                        operation_type: The type of operation to process ('plan', 'todo', or 'all')
+                        display_name: The display name to show in the UI
+                    """
                     try:
                         loading_indicator.classes("visible")
                         state.reset_processing()
-                        storage = getattr(ui.page, "_storage", {})
-                        handle_stream_update = storage.get("handle_stream_update")
-                        success, message = await planner_service.generate_plan_only(
-                            model=model_input.value,
-                            category=category_input.value,
-                            input_folder=input_folder.value,
-                            output_folder=output_folder.value,
-                            retry_count=retry_input.value,
-                            stream_handler=handle_stream_update,
+
+                        # Update state with form values
+                        state.model = model_input.value
+                        state.category = category_input.value
+                        state.input_path = input_folder.value
+                        state.output_path = output_folder.value
+                        state.max_retries = retry_input.value
+                        state.operation_type = operation_type
+
+                        # Log request details for debugging
+                        print(
+                            f"Processing {operation_type} request with model: {state.model}"
                         )
-                        ui.notify(message, type="positive" if success else "negative")
+
+                        # Process request with streaming
+                        stream_id = await llm_service.process_request(
+                            operation_type=operation_type
+                        )
+
+                        if stream_id:
+                            print(f"Stream ID received: {stream_id}")
+                            await connect_to_stream(stream_id, display_name)
+                        else:
+                            ui.notify(
+                                "No stream ID returned from LLM service",
+                                type="negative",
+                            )
+
                     except Exception as e:
                         ui.notify(f"Error: {str(e)}", type="negative")
+                        print(f"Error processing {operation_type}: {str(e)}")
                     finally:
                         loading_indicator.classes("hidden")
+
+                async def on_plan_click() -> None:
+                    """Handle plan button click."""
+                    await process_operation("plan", "Plan")
 
                 async def on_todo_click() -> None:
                     """Handle todo button click."""
-                    try:
-                        loading_indicator.classes("visible")
-                        state.reset_processing()
-                        storage = getattr(ui.page, "_storage", {})
-                        handle_stream_update = storage.get("handle_stream_update")
-                        success, message = await planner_service.generate_todo_only(
-                            model=model_input.value,
-                            category=category_input.value,
-                            input_folder=input_folder.value,
-                            output_folder=output_folder.value,
-                            retry_count=retry_input.value,
-                            stream_handler=handle_stream_update,
-                        )
-                        ui.notify(message, type="positive" if success else "negative")
-                    except Exception as e:
-                        ui.notify(f"Error: {str(e)}", type="negative")
-                    finally:
-                        loading_indicator.classes("hidden")
+                    await process_operation("todo", "Todo List")
 
                 async def on_all_click() -> None:
                     """Handle all (plan + todo) button click."""
-                    try:
-                        loading_indicator.classes("visible")
-                        state.reset_processing()
-                        storage = getattr(ui.page, "_storage", {})
-                        handle_stream_update = storage.get("handle_stream_update")
-                        success, message = await planner_service.generate_plan_and_todo(
-                            model=model_input.value,
-                            category=category_input.value,
-                            input_folder=input_folder.value,
-                            output_folder=output_folder.value,
-                            retry_count=retry_input.value,
-                            stream_handler=handle_stream_update,
-                        )
-                        ui.notify(message, type="positive" if success else "negative")
-                    except Exception as e:
-                        ui.notify(f"Error: {str(e)}", type="negative")
-                    finally:
-                        loading_indicator.classes("hidden")
+                    await process_operation("all", "Plan & Todo")
 
                 def on_stop_click() -> None:
                     """Handle stop button click."""
                     state = AppState.get_instance()
                     state.stream_controller.request_stop()
+                    stream_service.stop_all_streams()
                     ui.notify("Stopping LLM processing...", type="info")
 
                 with ui.row().classes("w-full gap-2"):
