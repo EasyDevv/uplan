@@ -27,6 +27,7 @@ class AppState:
     # Processing state
     processing: bool = False
     error_message: Optional[str] = None
+    stop_streaming: bool = False  # Flag to stop streaming process
 
     # Response data
     llm_response: Dict = field(default_factory=dict)
@@ -95,3 +96,4 @@ class AppState:
         """Reset processing state."""
         self.processing = False
         self.error_message = None
+        self.stop_streaming = False  # Reset stream stop flag

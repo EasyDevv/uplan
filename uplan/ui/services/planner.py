@@ -71,3 +71,102 @@ class PlannerService:
 
         except Exception as e:
             return False, f"Error: {str(e)}"
+
+    async def generate_plan_only(
+        self,
+        model: str,
+        category: str,
+        input_folder: str,
+        output_folder: str,
+        retry_count: int,
+        stream_handler: Optional[callable] = None,
+    ) -> tuple[bool, str]:
+        """Generate only a plan."""
+        try:
+            # Validate model
+            is_supported, message = check_model_support(model)
+            if not is_supported:
+                return False, message
+
+            # Set state values
+            self.state.input_path = str(Path(input_folder) / category)
+            self.state.output_path = str(Path(output_folder) / category)
+            self.state.model = model
+            self.state.retry = retry_count
+
+            # Process with LLM service for plan only
+            await self.llm_service.process_plan_request(stream_handler=stream_handler)
+
+            if self.state.error_message:
+                return False, self.state.error_message
+
+            return True, "Plan generated successfully"
+
+        except Exception as e:
+            return False, f"Error: {str(e)}"
+
+    async def generate_todo_only(
+        self,
+        model: str,
+        category: str,
+        input_folder: str,
+        output_folder: str,
+        retry_count: int,
+        stream_handler: Optional[callable] = None,
+    ) -> tuple[bool, str]:
+        """Generate only a todo list."""
+        try:
+            # Validate model
+            is_supported, message = check_model_support(model)
+            if not is_supported:
+                return False, message
+
+            # Set state values
+            self.state.input_path = str(Path(input_folder) / category)
+            self.state.output_path = str(Path(output_folder) / category)
+            self.state.model = model
+            self.state.retry = retry_count
+
+            # Process with LLM service for todo only
+            await self.llm_service.process_todo_request(stream_handler=stream_handler)
+
+            if self.state.error_message:
+                return False, self.state.error_message
+
+            return True, "Todo list generated successfully"
+
+        except Exception as e:
+            return False, f"Error: {str(e)}"
+
+    async def generate_plan_and_todo(
+        self,
+        model: str,
+        category: str,
+        input_folder: str,
+        output_folder: str,
+        retry_count: int,
+        stream_handler: Optional[callable] = None,
+    ) -> tuple[bool, str]:
+        """Generate both plan and todo."""
+        try:
+            # Validate model
+            is_supported, message = check_model_support(model)
+            if not is_supported:
+                return False, message
+
+            # Set state values
+            self.state.input_path = str(Path(input_folder) / category)
+            self.state.output_path = str(Path(output_folder) / category)
+            self.state.model = model
+            self.state.retry = retry_count
+
+            # Process with LLM service for both plan and todo
+            await self.llm_service.process_request(stream_handler=stream_handler)
+
+            if self.state.error_message:
+                return False, self.state.error_message
+
+            return True, "Plan and todo generated successfully"
+
+        except Exception as e:
+            return False, f"Error: {str(e)}"

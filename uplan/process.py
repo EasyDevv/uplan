@@ -24,6 +24,7 @@ from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 import logging
 import traceback
+from uplan.ui.state import AppState
 
 
 # 로그 설정
@@ -59,7 +60,10 @@ async def run(
     async def process_stream(response: AsyncIterator[Any]) -> str:
         """Process streaming response and update UI."""
         full_text = ""
+        state = AppState.get_instance()
         async for chunk in response:
+            if state.stop_streaming:
+                return full_text
             if chunk and chunk.choices and chunk.choices[0].delta.content:
                 text_chunk = chunk.choices[0].delta.content
                 full_text += text_chunk
@@ -73,6 +77,9 @@ async def run(
 
     for attempt in range(1, max_retries + 1):
         try:
+            state = AppState.get_instance()
+            if state.stop_streaming:
+                return {"status": "stopped", "message": "Processing stopped by user"}
             response = await litellm.acompletion(
                 model=model,
                 messages=[{"content": optimized_prompt, "role": "user"}],
@@ -103,6 +110,8 @@ async def run(
             logging.error(f"Error processing response: {traceback.format_exc()}")
             raise traceback.format_exc()
             # display_text_panel(text=f"Error processing response: {e}")
+        if state.stop_streaming:
+            return {"status": "stopped", "message": "Processing stopped by user"}
         if attempt < max_retries:
             display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
 

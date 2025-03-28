@@ -73,18 +73,10 @@ def create_options() -> None:
                     """Handle plan button click."""
                     try:
                         loading_indicator.classes("visible")
-
-                        # Get stream handler from content component with safe fallback
+                        state.reset_processing()
                         storage = getattr(ui.page, "_storage", {})
                         handle_stream_update = storage.get("handle_stream_update")
-                        if not handle_stream_update:
-                            ui.notify(
-                                "Warning: Stream handler not initialized",
-                                type="warning",
-                            )
-
-                        # Generate plan using planner service
-                        success, message = await planner_service.generate_plan(
+                        success, message = await planner_service.generate_plan_only(
                             model=model_input.value,
                             category=category_input.value,
                             input_folder=input_folder.value,
@@ -92,13 +84,64 @@ def create_options() -> None:
                             retry_count=retry_input.value,
                             stream_handler=handle_stream_update,
                         )
-
-                        # Show appropriate notification
                         ui.notify(message, type="positive" if success else "negative")
-
                     except Exception as e:
                         ui.notify(f"Error: {str(e)}", type="negative")
                     finally:
                         loading_indicator.classes("hidden")
 
-                ui.button("Plan", on_click=on_plan_click).classes("w-full")
+                async def on_todo_click() -> None:
+                    """Handle todo button click."""
+                    try:
+                        loading_indicator.classes("visible")
+                        state.reset_processing()
+                        storage = getattr(ui.page, "_storage", {})
+                        handle_stream_update = storage.get("handle_stream_update")
+                        success, message = await planner_service.generate_todo_only(
+                            model=model_input.value,
+                            category=category_input.value,
+                            input_folder=input_folder.value,
+                            output_folder=output_folder.value,
+                            retry_count=retry_input.value,
+                            stream_handler=handle_stream_update,
+                        )
+                        ui.notify(message, type="positive" if success else "negative")
+                    except Exception as e:
+                        ui.notify(f"Error: {str(e)}", type="negative")
+                    finally:
+                        loading_indicator.classes("hidden")
+
+                async def on_all_click() -> None:
+                    """Handle all (plan + todo) button click."""
+                    try:
+                        loading_indicator.classes("visible")
+                        state.reset_processing()
+                        storage = getattr(ui.page, "_storage", {})
+                        handle_stream_update = storage.get("handle_stream_update")
+                        success, message = await planner_service.generate_plan_and_todo(
+                            model=model_input.value,
+                            category=category_input.value,
+                            input_folder=input_folder.value,
+                            output_folder=output_folder.value,
+                            retry_count=retry_input.value,
+                            stream_handler=handle_stream_update,
+                        )
+                        ui.notify(message, type="positive" if success else "negative")
+                    except Exception as e:
+                        ui.notify(f"Error: {str(e)}", type="negative")
+                    finally:
+                        loading_indicator.classes("hidden")
+
+                def on_stop_click() -> None:
+                    """Handle stop button click."""
+                    state.stop_streaming = True
+                    ui.notify("Stopping LLM processing...", type="info")
+
+                with ui.row().classes("w-full gap-2"):
+                    ui.button("Plan", on_click=on_plan_click).classes("flex-grow")
+                    ui.button("Todo", on_click=on_todo_click).classes("flex-grow")
+                with ui.row().classes("w-full gap-2 mt-2"):
+                    ui.button("All", on_click=on_all_click).classes("flex-grow")
+                    ui.button("Stop", on_click=on_stop_click).classes(
+                        "flex-grow bg-negative"
+                    )
