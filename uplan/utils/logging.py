@@ -14,7 +14,7 @@ import json
 import logging
 import time
 import traceback
-from contextlib import contextmanager
+import contextvars
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -35,6 +35,24 @@ LOG_DIR = Path("logs")
 
 # Create logs directory if it doesn't exist
 LOG_DIR.mkdir(exist_ok=True)
+
+# Context variable to store current function name
+current_func_name = contextvars.ContextVar("current_func_name", default=None)
+
+
+def get_current_func_name() -> str:
+    """
+    Get the name of the current function from context or fallback to inspect.
+
+    Returns:
+        str: Current function name
+    """
+    name = current_func_name.get()
+    if name is None:
+        # Fallback to inspect if not set by decorator
+        frame = inspect.currentframe().f_back
+        name = frame.f_code.co_name if frame else "unknown"
+    return name
 
 
 @dataclass
@@ -238,199 +256,62 @@ def log_structured(log_type: str, **kwargs) -> None:
 
 def trace_function(func: Callable) -> Callable:
     """Decorator to trace entry and exit of a function with timing."""
+    func_name = func.__name__
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        call_info = get_call_info(func, args, kwargs)
-        log_function_event("entry", call_info)
+        # Set context variable for this execution
+        token = current_func_name.set(func_name)
 
-        start_time = time.time()
         try:
-            result = func(*args, **kwargs)
-            log_function_event("exit", call_info, time.time() - start_time)
-            return result
-        except Exception as e:
-            log_function_event("error", call_info, time.time() - start_time, e)
-            raise
+            call_info = get_call_info(func, args, kwargs)
+            log_function_event("entry", call_info)
+
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+                log_function_event("exit", call_info, time.time() - start_time)
+                return result
+            except Exception as e:
+                log_function_event("error", call_info, time.time() - start_time, e)
+                raise
+        finally:
+            # Reset context variable
+            current_func_name.reset(token)
 
     return wrapper
 
 
 def log_async_function(func: Callable) -> Callable:
     """Decorator to trace entry and exit of an async function with timing."""
+    func_name = func.__name__
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        call_info = get_call_info(func, args, kwargs)
-        log_function_event("entry", call_info, is_async=True)
+        # Set context variable for this execution
+        token = current_func_name.set(func_name)
 
-        start_time = time.time()
         try:
-            result = await func(*args, **kwargs)
-            log_function_event(
-                "exit", call_info, time.time() - start_time, is_async=True
-            )
-            return result
-        except Exception as e:
-            log_function_event(
-                "error", call_info, time.time() - start_time, e, is_async=True
-            )
-            raise
+            call_info = get_call_info(func, args, kwargs)
+            log_function_event("entry", call_info, is_async=True)
+
+            start_time = time.time()
+            try:
+                result = await func(*args, **kwargs)
+                log_function_event(
+                    "exit", call_info, time.time() - start_time, is_async=True
+                )
+                return result
+            except Exception as e:
+                log_function_event(
+                    "error", call_info, time.time() - start_time, e, is_async=True
+                )
+                raise
+        finally:
+            # Reset context variable
+            current_func_name.reset(token)
 
     return wrapper
-
-
-@contextmanager
-def LogContext(context_name: str):
-    """Context manager for tracking logical blocks of code."""
-    console.print(f"⏺ Starting context: {context_name}", style="cyan")
-    log_structured("context_entry", context=context_name)
-
-    start_time = time.time()
-    try:
-        yield
-        elapsed = time.time() - start_time
-        console.print(
-            f"✓ Completed context: {context_name} in {elapsed:.4f}s", style="green"
-        )
-        log_structured(
-            "context_exit",
-            context=context_name,
-            status="success",
-            execution_time=elapsed,
-        )
-    except Exception as e:
-        elapsed = time.time() - start_time
-        tb = traceback.format_exc()
-        console.print(
-            f"❌ Error in context {context_name}:\n{str(e)}\n{tb}", style="bold red"
-        )
-        log_structured(
-            "context_error",
-            context=context_name,
-            status="error",
-            execution_time=elapsed,
-            error=str(e),
-            traceback=tb,
-        )
-        raise
-
-
-class LogAnalyzer:
-    """Utility class for analyzing log files."""
-
-    def __init__(self, log_file: Optional[Union[str, Path]] = None):
-        """Initialize with a specific log file or today's log file."""
-        if log_file is None:
-            today = datetime.now().strftime("%Y%m%d")
-            self.log_file = LOG_DIR / f"uplan_{today}.log"
-        else:
-            self.log_file = Path(log_file)
-
-        self._metrics_cache: Dict[str, Dict[str, MetricsData]] = {
-            "functions": {},
-            "contexts": {},
-        }
-        self._errors_cache: list = []
-        self._cache_updated = False
-
-    def _update_cache(self) -> None:
-        """Update the metrics and errors cache from log file."""
-        if not self.log_file.exists() or self._cache_updated:
-            return
-
-        with open(self.log_file, "r") as f:
-            for line in f:
-                try:
-                    log_entry = json.loads(line)
-                    self._process_log_entry(log_entry)
-                except json.JSONDecodeError:
-                    continue
-                except Exception as e:
-                    console.print(f"Error parsing log entry: {e}", style="red")
-
-        self._cache_updated = True
-
-    def _process_log_entry(self, log_entry: dict) -> None:
-        """Process a single log entry for metrics and errors."""
-        structured_data = log_entry
-        entry_type = structured_data.get("type", "")
-
-        if entry_type == "function_exit":
-            self._update_metrics(
-                "functions",
-                structured_data.get("function", "unknown"),
-                structured_data.get("execution_time", 0),
-            )
-        elif entry_type == "context_exit":
-            self._update_metrics(
-                "contexts",
-                structured_data.get("context", "unknown"),
-                structured_data.get("execution_time", 0),
-            )
-        elif entry_type in ("function_error", "context_error"):
-            self._errors_cache.append(
-                {
-                    "timestamp": log_entry.get("timestamp"),
-                    "type": entry_type,
-                    "location": f"{structured_data.get('function', structured_data.get('context', 'unknown'))}",
-                    "module": structured_data.get("module", "unknown"),
-                    "error": structured_data.get("error"),
-                    "traceback": structured_data.get("traceback"),
-                }
-            )
-
-    def _update_metrics(self, category: str, name: str, execution_time: float) -> None:
-        """Update metrics for a specific category and name."""
-        if name not in self._metrics_cache[category]:
-            self._metrics_cache[category][name] = MetricsData()
-        self._metrics_cache[category][name].update(execution_time)
-
-    def get_performance_metrics(self) -> Dict[str, Dict[str, dict]]:
-        """Get performance metrics from the log file."""
-        self._update_cache()
-        return {
-            category: {name: asdict(data) for name, data in metrics.items()}
-            for category, metrics in self._metrics_cache.items()
-        }
-
-    def get_error_report(self) -> list:
-        """Get a report of errors from the log file."""
-        self._update_cache()
-        return self._errors_cache
-
-    def print_summary(self) -> None:
-        """Print a summary of the log file to the console."""
-        console.print("\n[bold blue]====== uPlan Log Analysis ======[/bold blue]")
-
-        metrics = self.get_performance_metrics()
-        for category in ("functions", "contexts"):
-            if metrics[category]:
-                console.print(f"\n[bold]{category.title()} Performance:[/bold]")
-                sorted_items = sorted(
-                    metrics[category].items(),
-                    key=lambda x: x[1]["total_time"],
-                    reverse=True,
-                )
-                for name, data in sorted_items[:10]:
-                    console.print(
-                        f"  [cyan]{name}[/cyan]: {data['count']} calls, "
-                        f"avg: {data['avg_time']:.4f}s, max: {data['max_time']:.4f}s"
-                    )
-
-        errors = self.get_error_report()
-        if errors:
-            console.print(f"\n[bold red]Errors ({len(errors)}):[/bold red]")
-            for i, error in enumerate(errors[:5]):
-                console.print(
-                    f"  {i + 1}. [red]{error['location']}[/red]: {error['error']}"
-                )
-            if len(errors) > 5:
-                console.print(f"  ... and {len(errors) - 5} more errors")
-        else:
-            console.print("\n[green]No errors reported[/green]")
-
-        console.print("\n[bold blue]================================[/bold blue]")
 
 
 def log_command(cmd_args: list) -> None:
@@ -440,12 +321,11 @@ def log_command(cmd_args: list) -> None:
 
 def log_error(error: Exception, module: Optional[str] = None) -> None:
     """Log an error with full traceback."""
-    logger = get_logger()
     error_time = datetime.now()
     tb = traceback.format_exc()
 
     # Log to console with full traceback
-    console.print(f"❌ Error: {str(error)}\n{tb}", style="bold red")
+    console.print(f"❌ Error: {str(error)}\n{tb}")
 
     # Log to structured log
     log_structured(
@@ -461,7 +341,7 @@ def log_error(error: Exception, module: Optional[str] = None) -> None:
     error_file = error_dir / error_filename
 
     with open(error_file, "w") as f:
-        f.write(f"=== uPlan Error Report ===\n")
+        f.write("=== uPlan Error Report ===\n")
         f.write(f"Timestamp: {error_time.isoformat()}\n")
         f.write(f"Module: {module or 'unknown'}\n")
         f.write(f"Error: {error.__class__.__name__}: {str(error)}\n\n")

@@ -30,6 +30,7 @@ from uplan.utils.logging import (
     log_async_function,
     log_error,
     trace_function,
+    get_current_func_name,  # Import the new helper function
 )
 from uplan.ui.state import AppState
 
@@ -53,7 +54,7 @@ async def run(
     **litellm_kwargs,
 ) -> dict:
     """Run LLM inference with streaming support."""
-    func_name = inspect.currentframe().f_code.co_name
+    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         f"Starting LLM inference",
         extra={"function": func_name, "model": model, "prompt_title": prompt_title},
@@ -191,7 +192,7 @@ async def get_plan(
     Returns:
         dict: Response containing status and generated plan data
     """
-    func_name = inspect.currentframe().f_code.co_name
+    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         "Starting plan generation process",
         extra={"function": func_name, "model": model, "retry": retry},
@@ -231,7 +232,7 @@ async def get_todo(
     **litellm_kwargs,
 ) -> dict:
     """Execute todo generation process."""
-    func_name = inspect.currentframe().f_code.co_name
+    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         "Starting todo generation process",
         extra={"function": func_name, "model": model, "retry": retry},
@@ -337,7 +338,7 @@ async def get_all(
     **litellm_kwargs,
 ) -> Tuple[dict, dict]:
     """Generate both plan and todo documents in sequence with streaming support."""
-    func_name = inspect.currentframe().f_code.co_name
+    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         "Starting combined plan and todo generation",
         extra={
