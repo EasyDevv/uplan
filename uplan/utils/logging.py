@@ -311,13 +311,30 @@ def get_logger() -> logging.Logger:
     return _logger
 
 
-def log_structured(log_type: str, **kwargs) -> None:
-    """Add structured log entry with custom fields."""
+def log_structured(
+    log_type: str, level: str = "info", message: str = "", **kwargs
+) -> None:
+    """Add structured log entry with custom fields.
+
+    Args:
+        log_type: Type of log entry to categorize logs
+        level: Log level (info, error, warning, debug, critical)
+        message: The actual log message
+        **kwargs: Additional structured data fields
+    """
     logger = get_logger()
-    # Create log entry data without nesting under structured_data
+
+    # Create log entry data
     log_data = {"type": log_type, **kwargs}
-    # Pass directly to structured_data
-    logger.info("", extra={"structured_data": log_data})
+
+    # Use proper message or generate one if empty
+    log_message = message or f"{log_type.replace('_', ' ').title()}"
+
+    # Select appropriate log method based on level
+    log_method = getattr(logger, level.lower(), logger.info)
+
+    # Send to logger with proper level
+    log_method(log_message, extra={"structured_data": log_data})
 
 
 def trace_function(func: Callable) -> Callable:
@@ -378,55 +395,3 @@ def log_async_function(func: Callable) -> Callable:
             current_func_name.reset(token)
 
     return wrapper
-
-
-def log_command(cmd_args: list) -> None:
-    """Log a command execution."""
-    log_structured("command_execution", command=" ".join(cmd_args))
-
-
-def log_error(error: Exception, module: Optional[str] = None) -> None:
-    """Log an error with full traceback."""
-    # Skip if this error has already been logged
-    if module and is_error_logged(error, module):
-        return
-
-    error_time = datetime.now()
-    tb = traceback.format_exc()
-
-    # Log to console with full traceback
-    console.print(f"❌ Error: {str(error)}\n{tb}")
-
-    # Log to structured log
-    log_structured(
-        "error", message=str(error), module=module or "unknown", traceback=tb
-    )
-
-    # Create detailed error report file
-    error_dir = LOG_DIR / "errors"
-    error_dir.mkdir(exist_ok=True)
-    error_filename = (
-        f"error_{error_time.strftime('%Y%m%d_%H%M%S')}_{module or 'unknown'}.log"
-    )
-    error_file = error_dir / error_filename
-
-    with open(error_file, "w") as f:
-        f.write("=== uPlan Error Report ===\n")
-        f.write(f"Timestamp: {error_time.isoformat()}\n")
-        f.write(f"Module: {module or 'unknown'}\n")
-        f.write(f"Error: {error.__class__.__name__}: {str(error)}\n\n")
-        f.write(f"=== Traceback ===\n{tb}\n")
-
-        # Include exception chain if present
-        if error.__cause__:
-            f.write("\n=== Cause Chain ===\n")
-            cause = error.__cause__
-            while cause:
-                f.write(f"{cause.__class__.__name__}: {str(cause)}\n")
-                cause = cause.__cause__
-
-    console.print(f"📝 Error report: {error_file}", style="yellow")
-
-    # Mark this error as logged
-    if module:
-        mark_error_logged(error, module)
