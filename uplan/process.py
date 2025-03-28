@@ -2,35 +2,29 @@
 Module for processing and generating development plans and to-do lists using LLMs.
 """
 
+import asyncio
 import json
-import inspect
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple, Awaitable
+from typing import Any, AsyncIterator, Awaitable, Callable, Optional, Tuple
 
 import litellm
-from regex import E
 import tomli_w
 import tomllib
-from rich import print
-import asyncio
 
 from uplan.models.todo import TodoModel
-from uplan.question import collect_answers_cli, select_option
+from uplan.ui.state import AppState
 from uplan.utils.data import add_completed_status, toml_to_markdown
 from uplan.utils.display import (
     display_json_panel,
-    display_streaming,
     display_text_panel,
 )
-from uplan.utils.file import open_file
-from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
-from uplan.utils.stream import StreamController
 from uplan.utils.logging import (
     get_logger,
     log_async_function,
     trace_function,
 )
-from uplan.ui.state import AppState
+from uplan.utils.stream import StreamController
+from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 
 # Initialize logger
 logger = get_logger()
@@ -137,21 +131,8 @@ async def run(
 
             return {"status": "success", "data": json_block, "output_file": output_file}
 
-        except asyncio.TimeoutError:
-            display_text_panel(text=f"Request timed out after 120 seconds")
-            return logger.error("Request timeout", extra={"timeout": 120})
-        except asyncio.CancelledError:
-            logger.info("Request cancelled by user")
-            return {"status": "stopped", "message": "Processing stopped by user"}
-        except json.JSONDecodeError as je:
-            display_text_panel(text=f"Invalid JSON format: {je}")
-            return logger.error("JSON decode error", extra={"error": str(je)})
         except Exception as e:
             raise
-
-        # Check if we need to exit the retry loop completely due to stop request
-        if controller.stop_requested:
-            return {"status": "stopped", "message": "Processing stopped by user"}
 
         if attempt < max_retries:
             display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
@@ -305,27 +286,27 @@ def prepare_answers(input_folder: Path) -> dict:
     """
     plan_file = input_folder / "plan.toml"
 
-    if not plan_file.exists():
-        logger.warning(
-            f"plan.toml not found in {input_folder}, using default template",
-            extra={"input_path": str(input_folder)},
-        )
-        # Return a minimal default plan structure
-        return {
-            "project": {
-                "name": "New Project",
-                "description": "Default project template",
-            },
-            "settings": {"language": "python", "framework": "none"},
-        }
+    # if not plan_file.exists():
+    #     logger.warning(
+    #         f"plan.toml not found in {input_folder}, using default template",
+    #         extra={"input_path": str(input_folder)},
+    #     )
+    #     # Return a minimal default plan structure
+    #     return {
+    #         "project": {
+    #             "name": "New Project",
+    #             "description": "Default project template",
+    #         },
+    #         "settings": {"language": "python", "framework": "none"},
+    #     }
 
     try:
         with open(plan_file, "rb") as f:
             answers_data = tomllib.load(f)
         return answers_data
     except Exception as e:
-        logger.error(f"Error reading plan.toml: {str(e)}")
-        raise RuntimeError(f"Failed to process plan.toml in {input_folder}: {str(e)}")
+        raise logger.error(f"Error reading plan.toml: {str(e)}")
+        # raise
 
 
 @log_async_function
