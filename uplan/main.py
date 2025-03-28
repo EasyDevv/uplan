@@ -1,12 +1,12 @@
+"""CLI functionality for UPlan (subsidiary to GUI mode)."""
+
 import click
 from pathlib import Path
-
 from rich import print
 
 from uplan.app import create_app
 from uplan.init import initialize
 from uplan.process import get_all, get_plan, get_todo
-
 
 # Create app instance
 app = create_app()
@@ -14,17 +14,36 @@ app = create_app()
 
 def common_options(f):
     """Common click options for all commands."""
-    options = [
-        click.option("--model", default="ollama/qwq", help="LLM model to use"),
-        click.option(
-            "--retry", default=5, type=int, help="Max retries for LLM requests"
-        ),
-        click.option("--category", default="dev", help="form category"),
-        click.option("--input", default="./input", help="Input folder"),
-        click.option("--output", default="./output", help="Output folder"),
-    ]
-    for option in reversed(options):
-        f = option(f)
+    f = click.option(
+        "--model",
+        "-m",
+        default="gpt-3.5-turbo",
+        help="Model to use",
+    )(f)
+    f = click.option(
+        "--category",
+        "-c",
+        default="dev",
+        help="Form category",
+    )(f)
+    f = click.option(
+        "--input",
+        "-i",
+        default="./input",
+        help="Input folder",
+    )(f)
+    f = click.option(
+        "--output",
+        "-o",
+        default="./output",
+        help="Output folder",
+    )(f)
+    f = click.option(
+        "--retry",
+        "-r",
+        default=3,
+        help="Number of retries",
+    )(f)
     return f
 
 
@@ -32,7 +51,7 @@ def common_options(f):
 @common_options
 @click.pass_context
 def cli(ctx, **kwargs):
-    """Plan and Todo Manager"""
+    """UPlan - Command Line Interface (subsidiary to GUI)"""
     if ctx.invoked_subcommand is None:
         # Validate model
         if not app.validate_model(kwargs["model"]):
@@ -105,10 +124,5 @@ def init(form, force, **kwargs):
     initialize(force=force, form_dir=form)
 
 
-def main():
-    """Main entry point for the application."""
-    app.run_cli()
-
-
 if __name__ == "__main__":
-    main()
+    cli()

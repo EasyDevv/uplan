@@ -1,6 +1,6 @@
 """Core application class for UPlan.
 
-Provides centralized initialization and service management for both CLI and GUI modes.
+Provides centralized initialization with GUI as primary and CLI as secondary mode.
 """
 
 from pathlib import Path
@@ -17,13 +17,16 @@ from uplan.utils.provider import check_model_support, setup_env
 
 
 class UPlanApp:
-    """Central application class managing both CLI and GUI modes."""
+    """Central application class with GUI as primary and CLI as secondary mode."""
 
     def __init__(self):
-        """Initialize the UPlan application."""
+        """Initialize the UPlan application with GUI focus."""
         self.state = AppState.get_instance()
         self.services: Dict[str, Any] = {}
         self._initialize_services()
+
+        # Setup environment by default
+        setup_env()
 
     def _initialize_services(self) -> None:
         """Initialize and register core services."""
@@ -37,7 +40,7 @@ class UPlanApp:
             {"state": state_service, "stream": stream_service, "llm": llm_service}
         )
 
-        # Register services with NiceGUI app for GUI mode
+        # Register services with NiceGUI app
         if not hasattr(nicegui_app, "services"):
             nicegui_app.services = {}
         nicegui_app.services.update(self.services)
@@ -45,16 +48,7 @@ class UPlanApp:
     def setup_folders(
         self, input_root: str, output_root: str, category: str
     ) -> tuple[Path, Path]:
-        """Setup and validate input/output folders.
-
-        Args:
-            input_root: Root directory for input files
-            output_root: Root directory for output files
-            category: Form category name
-
-        Returns:
-            Tuple of (input_folder, output_folder) Paths
-        """
+        """Setup and validate input/output folders."""
         input_folder = Path(input_root) / category
         output_folder = Path(output_root) / category
 
@@ -62,53 +56,31 @@ class UPlanApp:
         return input_folder, output_folder
 
     def validate_model(self, model_name: str) -> bool:
-        """Validate the specified LLM model.
-
-        Args:
-            model_name: Name of the model to validate
-
-        Returns:
-            True if model is valid, False otherwise
-        """
-        success, message = check_model_support(model_name)
+        """Validate the specified LLM model."""
+        success, _ = check_model_support(model_name)
         return success
 
-    def run_cli(self, **options) -> None:
-        """Run the application in CLI mode.
-
-        Args:
-            **options: CLI options including model, retry count, etc.
-        """
-        from uplan.main import cli
-
-        cli.main(standalone_mode=False, **options)
-
     def run_gui(self, **options) -> None:
-        """Run the application in GUI mode.
-
-        Args:
-            **options: GUI options including title, theme, etc.
-        """
-        # Setup environment
-        setup_env()
-
+        """Run the application in GUI mode (primary mode)."""
         # Create UI layout
         create_main_layout(self.state)
 
-        # Run NiceGUI app
+        # Run NiceGUI app with sensible defaults
         ui.run(
             title=options.get("title", "UPlan"),
             favicon=options.get("favicon", "✅"),
-            reload=options.get("reload", True),
-            show=options.get("show", False),
+            reload=options.get("reload", False),
+            show=options.get("show", True),
             dark=options.get("dark", True),
         )
 
+    def run_cli(self) -> None:
+        """Run the application in CLI mode (subsidiary mode)."""
+        from uplan.main import cli
+
+        cli()
+
 
 def create_app() -> UPlanApp:
-    """Create and configure the UPlan application.
-
-    Returns:
-        Configured UPlanApp instance
-    """
+    """Create and return the application instance."""
     return UPlanApp()

@@ -31,7 +31,7 @@ dev = ["arel", "pytest-playwright"]
 source = "https://github.com/easydevv/uplan"
 
 [project.scripts]
-uplan = "uplan.main:main"
+uplan = "uplan.__main__:main"
 
 [tool.setuptools]
 packages = ["uplan"]
