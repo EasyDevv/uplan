@@ -3,6 +3,7 @@
 This module implements a reactive singleton state pattern for the application.
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, Optional, ClassVar, Callable
 
@@ -27,7 +28,8 @@ class AppState:
     # Processing state
     processing: bool = False
     error_message: Optional[str] = None
-    stop_streaming: bool = False  # Flag to stop streaming process
+    _stop_streaming: bool = False  # Flag to stop streaming process
+    current_task: Optional[Callable] = None
 
     # Response data
     llm_response: Dict = field(default_factory=dict)
@@ -93,7 +95,23 @@ class AppState:
         self.error_message = None
 
     def reset_processing(self) -> None:
-        """Reset processing state."""
+        """Reset processing state completely."""
+        logging.debug("Resetting processing state")
         self.processing = False
         self.error_message = None
-        self.stop_streaming = False  # Reset stream stop flag
+        self._stop_streaming = False
+
+        for callback in self._on_update_callbacks.values():
+            callback(self)
+
+    @property
+    def stop_streaming(self):
+        return self._stop_streaming
+
+    @stop_streaming.setter
+    def stop_streaming(self, value):
+        logging.debug(f"Setting stop_streaming to {value}")
+        self._stop_streaming = value
+        # Cancel the current task if stop_streaming is set to True
+        if value and self.current_task:
+            self.current_task.cancel()

@@ -5,6 +5,7 @@ from datetime import datetime
 from asyncio import Lock
 from nicegui import ui
 from typing_extensions import Any
+from uplan.ui.state import AppState  # Add import for AppState
 
 
 class ContentManager:
@@ -17,6 +18,7 @@ class ContentManager:
         self._debounce_delay = 0.1  # seconds
         self._active_card = None
         self._active_content = None
+        self._active_title = None
         self._is_streaming = False
 
     def _hash_content(self, text: str) -> str:
@@ -30,6 +32,19 @@ class ContentManager:
         """
         return hashlib.md5(text.encode("utf-8")).hexdigest()
 
+    async def _stop_streaming(self) -> None:
+        """Handle cleanup and visual updates when streaming is stopped."""
+        if self._active_title and self._active_card:
+            current_title = self._active_title.text
+            if not current_title.endswith("(Stopped)"):
+                self._active_title.text = f"{current_title} (Stopped)"
+
+        # Reset streaming state
+        self._active_card = None
+        self._active_content = None
+        self._active_title = None
+        self._is_streaming = False
+
     def _create_new_card(self, container: ui.element, text: str) -> None:
         """Create a new content card.
 
@@ -39,7 +54,7 @@ class ContentManager:
         """
         with container:
             with ui.card().classes("w-full mb-4 h-auto") as card:
-                ui.label(
+                title = ui.label(
                     f"Generated Content - {datetime.now().strftime('%H:%M:%S')}"
                 ).classes("card-title")
                 content = ui.markdown(text).classes(
@@ -47,6 +62,7 @@ class ContentManager:
                 )
                 self._active_card = card
                 self._active_content = content
+                self._active_title = title
 
     async def update(
         self, container: ui.element, text: str, is_complete: bool = False
@@ -58,6 +74,12 @@ class ContentManager:
             text: Text to append as a new card
             is_complete: Flag indicating if this is the final update in a stream
         """
+        # Check if streaming has been stopped
+        state = AppState.get_instance()
+        if state.stop_streaming:
+            await self._stop_streaming()
+            return  # Don't create or update any cards if streaming is stopped
+
         content_hash = self._hash_content(text)
 
         async with self._lock:
@@ -89,6 +111,14 @@ async def handle_stream_update(
         text: Text to append as a new card
         is_complete: Flag indicating if this is the final update in a stream
     """
+    # Check if streaming has been stopped before proceeding
+    state = AppState.get_instance()
+    if state.stop_streaming:
+        if not hasattr(ui.page, "_content_manager"):
+            return
+        await ui.page._content_manager._stop_streaming()
+        return  # Skip updates if streaming is stopped
+
     if container is not None:
         # Get or create content manager
         if not hasattr(ui.page, "_content_manager"):

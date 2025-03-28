@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Optional
 from nicegui import ui
+import asyncio
 
 from uplan.utils.provider import check_model_support
 from uplan.ui.services.llm import LLMService
@@ -149,6 +150,9 @@ class PlannerService:
     ) -> tuple[bool, str]:
         """Generate both plan and todo."""
         try:
+            # Track the current task in the application state
+            self.state.current_task = asyncio.current_task()
+
             # Validate model
             is_supported, message = check_model_support(model)
             if not is_supported:
@@ -170,3 +174,7 @@ class PlannerService:
 
         except Exception as e:
             return False, f"Error: {str(e)}"
+
+        finally:
+            # Clear the current task after completion
+            self.state.current_task = None

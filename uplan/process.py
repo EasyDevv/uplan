@@ -11,6 +11,7 @@ from regex import E
 import tomli_w
 import tomllib
 from rich import print
+import asyncio
 
 from uplan.models.todo import TodoModel
 from uplan.question import collect_answers_cli, select_option
@@ -61,18 +62,24 @@ async def run(
         """Process streaming response and update UI."""
         full_text = ""
         state = AppState.get_instance()
-        async for chunk in response:
-            if state.stop_streaming:
-                return full_text
-            if chunk and chunk.choices and chunk.choices[0].delta.content:
-                text_chunk = chunk.choices[0].delta.content
-                full_text += text_chunk
-                if stream_handler:
-                    try:
-                        await stream_handler(full_text)
-                    except TypeError:
-                        # Handle the case when stream_handler doesn't return an awaitable
-                        pass
+        try:
+            async for chunk in response:
+                if state.stop_streaming:
+                    if hasattr(response, "aclose"):
+                        await response.aclose()
+                    return full_text
+                if chunk and chunk.choices and chunk.choices[0].delta.content:
+                    text_chunk = chunk.choices[0].delta.content
+                    full_text += text_chunk
+                    if stream_handler:
+                        try:
+                            await stream_handler(full_text)
+                        except TypeError:
+                            pass
+                if state.stop_streaming:
+                    return full_text
+        except asyncio.CancelledError:
+            return full_text
         return full_text
 
     for attempt in range(1, max_retries + 1):
@@ -80,18 +87,41 @@ async def run(
             state = AppState.get_instance()
             if state.stop_streaming:
                 return {"status": "stopped", "message": "Processing stopped by user"}
-            response = await litellm.acompletion(
-                model=model,
-                messages=[{"content": optimized_prompt, "role": "user"}],
-                stream=stream,
-                **litellm_kwargs,
-            )
 
-            text = (
-                await process_stream(response)
-                if stream
-                else response.choices[0].message.content
+            timeout = 120  # seconds
+            response_task = asyncio.create_task(
+                litellm.acompletion(
+                    model=model,
+                    messages=[{"content": optimized_prompt, "role": "user"}],
+                    stream=stream,
+                    **litellm_kwargs,
+                )
             )
+            response = await asyncio.wait_for(response_task, timeout=timeout)
+
+            if stream:
+                stream_task = asyncio.create_task(process_stream(response))
+                while not stream_task.done():
+                    if state.stop_streaming:
+                        logging.info("Cancelling stream task")
+                        try:
+                            # Attempt to cancel the stream task
+                            stream_task.cancel()
+                            # Allow a short timeout for cancellation to take effect
+                            await asyncio.wait_for(stream_task, timeout=0.5)
+                        except (asyncio.CancelledError, asyncio.TimeoutError):
+                            # Expected behavior during cancellation
+                            pass
+                        finally:
+                            return {
+                                "status": "stopped",
+                                "message": "Processing stopped by user",
+                            }
+                    await asyncio.sleep(0.05)  # Check more frequently for stop signal
+                text = await stream_task
+            else:
+                text = response.choices[0].message.content
+
             dict_block = extract_code_block(text)
             json_block = json.loads(dict_block)
 
@@ -104,14 +134,21 @@ async def run(
 
             return {"status": "success", "data": json_block, "output_file": output_file}
 
+        except asyncio.TimeoutError:
+            display_text_panel(text=f"Request timed out after {timeout} seconds")
+        except asyncio.CancelledError:
+            return {"status": "stopped", "message": "Processing stopped by user"}
         except json.JSONDecodeError as je:
             display_text_panel(text=f"Invalid JSON format: {je}")
         except Exception as e:
             logging.error(f"Error processing response: {traceback.format_exc()}")
             raise traceback.format_exc()
-            # display_text_panel(text=f"Error processing response: {e}")
+
+        # Check if we need to exit the retry loop completely due to stop request
+        state = AppState.get_instance()
         if state.stop_streaming:
             return {"status": "stopped", "message": "Processing stopped by user"}
+
         if attempt < max_retries:
             display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
 
@@ -266,8 +303,13 @@ async def get_all(
         stream_handler=stream_handler,
         **litellm_kwargs,
     )
-    if plan_response.get("status") in ["exit", "error"]:
+    if plan_response.get("status") in ["exit", "error", "stopped"]:
         return plan_response, {"status": "skipped"}
+
+    # Check if streaming was stopped during plan generation
+    state = AppState.get_instance()
+    if state.stop_streaming:
+        return plan_response, {"status": "stopped"}
 
     # Generate todo using the created plan
     todo = prepare_todo(input_folder, output_folder)
