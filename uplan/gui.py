@@ -1,9 +1,13 @@
-"""Main GUI entry point for uplan."""
+"""Main GUI entry point for uplan.
+
+Initializes the application with centralized state management.
+"""
 
 from nicegui import app, ui
 
 from uplan.ui.layouts.main import create_main_layout
 from uplan.ui.services.llm import LLMService
+from uplan.ui.services.state_service import StateService
 from uplan.ui.state import AppState
 from uplan.utils.provider import setup_env
 
@@ -12,21 +16,23 @@ def init_app() -> None:
     """Initialize the NiceGUI application.
 
     Sets up the application state, services, and UI components.
+    Implements centralized state management through StateService.
     """
     # Initialize environment
     setup_env()
 
-    # Setup application state
-    state = AppState()
+    # Setup services with singleton state
+    # Initialize services dictionary if it doesn't exist
+    if not hasattr(app, "services"):
+        app.services = {}
 
-    # Initialize services
-    llm_service = LLMService(state)
+    # Create and register services
+    state_service = StateService()  # This creates/gets AppState singleton
+    llm_service = LLMService(state_service.state)
+    app.services.update({"state": state_service, "llm": llm_service})
 
     # Create UI layout
-    create_main_layout(state)
-
-    # Make services available to UI components
-    app.services = {"llm": llm_service}
+    create_main_layout(state_service.state)
 
 
 def main():

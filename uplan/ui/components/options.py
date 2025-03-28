@@ -45,7 +45,7 @@ def create_options() -> None:
             with ui.element("div").classes("mb-20"):
                 # Model selection
                 model_input = create_option_card(
-                    "Model", "gemma3:1b", "Enter model name"
+                    "Model", "ollama/gemma3:1b", "Enter model name"
                 )
 
                 # Category selection
@@ -90,12 +90,10 @@ def create_options() -> None:
                         )
 
                         # Show appropriate notification
-                        await ui.notify(
-                            message, type="positive" if success else "negative"
-                        )
+                        ui.notify(message, type="positive" if success else "negative")
 
                     except Exception as e:
-                        await ui.notify(f"Error: {str(e)}", type="negative")
+                        ui.notify(f"Error: {str(e)}", type="negative")
                     finally:
                         loading_indicator.classes("hidden")
 
