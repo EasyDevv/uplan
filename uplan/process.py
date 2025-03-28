@@ -300,22 +300,37 @@ def prepare_answers(input_folder: Path) -> dict:
     """
     Read and validate the plan form from input folder.
 
+    Creates a default plan if the file doesn't exist.
+
     Args:
         input_folder: Path to the input folder containing plan.toml
 
     Returns:
         dict: The answers data dictionary
-
-    Raises:
-        RuntimeError: If plan.toml is missing or form section is not found
     """
-    try:
-        with open(input_folder / "plan.toml", "rb") as f:
-            answers_data = tomllib.load(f)
-    except FileNotFoundError:
-        raise RuntimeError(f"Failed to read plan.toml in {input_folder}")
+    plan_file = input_folder / "plan.toml"
 
-    return answers_data
+    if not plan_file.exists():
+        logger.warning(
+            f"plan.toml not found in {input_folder}, using default template",
+            extra={"input_path": str(input_folder)},
+        )
+        # Return a minimal default plan structure
+        return {
+            "project": {
+                "name": "New Project",
+                "description": "Default project template",
+            },
+            "settings": {"language": "python", "framework": "none"},
+        }
+
+    try:
+        with open(plan_file, "rb") as f:
+            answers_data = tomllib.load(f)
+        return answers_data
+    except Exception as e:
+        logger.error(f"Error reading plan.toml: {str(e)}")
+        raise RuntimeError(f"Failed to process plan.toml in {input_folder}: {str(e)}")
 
 
 @log_async_function

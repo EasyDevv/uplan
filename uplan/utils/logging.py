@@ -15,10 +15,11 @@ import logging
 import time
 import traceback
 import contextvars
+import hashlib
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, Optional, Union, Set
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -38,6 +39,10 @@ LOG_DIR.mkdir(exist_ok=True)
 
 # Context variable to store current function name
 current_func_name = contextvars.ContextVar("current_func_name", default=None)
+
+# Track logged errors to prevent duplicates
+# Use contextvars to ensure thread safety
+logged_errors = contextvars.ContextVar("logged_errors", default=set())
 
 
 @dataclass
@@ -157,6 +162,53 @@ def get_call_info(func: Callable, args: tuple, kwargs: dict) -> Dict[str, Any]:
     }
 
 
+def get_error_hash(error: Exception, func_name: str) -> str:
+    """
+    Generate a unique hash for an error to prevent duplicate logging.
+
+    Args:
+        error: The exception that was raised
+        func_name: Name of the function where error occurred
+
+    Returns:
+        str: A unique hash for this error
+    """
+    tb = traceback.format_exception(type(error), error, error.__traceback__)
+    hash_content = f"{func_name}:{str(error)}:{''.join(tb[-3:])}"
+    return hashlib.md5(hash_content.encode()).hexdigest()
+
+
+def is_error_logged(error: Exception, func_name: str) -> bool:
+    """
+    Check if this particular error has already been logged.
+
+    Args:
+        error: The exception to check
+        func_name: Function where the error occurred
+
+    Returns:
+        bool: True if this error has already been logged
+    """
+    error_hash = get_error_hash(error, func_name)
+    error_set = logged_errors.get()
+    return error_hash in error_set
+
+
+def mark_error_logged(error: Exception, func_name: str) -> None:
+    """
+    Mark an error as logged to prevent duplicate logging.
+
+    Args:
+        error: The exception that was logged
+        func_name: Function where the error occurred
+    """
+    error_hash = get_error_hash(error, func_name)
+    error_set = logged_errors.get()
+    new_set = error_set.copy()
+    new_set.add(error_hash)
+    logged_errors.set(new_set)
+
+
 def log_function_event(
     event_type: str,
     call_info: Dict[str, Any],
@@ -166,15 +218,17 @@ def log_function_event(
 ) -> None:
     """Log function-related events with consistent formatting."""
     prefix = "async " if is_async else ""
+    func_name = call_info["function"]
+
     if event_type == "entry":
         console.print(
-            f"▶️ Entering {prefix}{call_info['function']} from {call_info['caller']}",
+            f"▶️ Entering {prefix}{func_name} from {call_info['caller']}",
             style="bright_blue",
         )
         log_structured("function_entry", **call_info, is_async=is_async)
     elif event_type == "exit":
         console.print(
-            f"✅ Exited {prefix}{call_info['function']} in {elapsed:.4f}s",
+            f"✅ Exited {prefix}{func_name} in {elapsed:.4f}s",
             style="green",
         )
         log_structured(
@@ -185,7 +239,12 @@ def log_function_event(
             is_async=is_async,
         )
     elif event_type == "error":
-        error_msg = f"❌ Error in {prefix}{call_info['function']}:"
+        # Check if this error has been logged already
+        if is_error_logged(error, func_name):
+            return
+
+        # Log the error and mark it as logged
+        error_msg = f"❌ Error in {prefix}{func_name}:"
         details = str(error)
         tb_str = traceback.format_exc()
         console.print(
@@ -201,6 +260,9 @@ def log_function_event(
             traceback=tb_str,
             is_async=is_async,
         )
+
+        # Mark this error as logged to prevent duplicates
+        mark_error_logged(error, func_name)
 
 
 def setup_logging(level: Optional[int] = None) -> logging.Logger:
@@ -319,38 +381,48 @@ def log_command(cmd_args: list) -> None:
     log_structured("command_execution", command=" ".join(cmd_args))
 
 
-# def log_error(error: Exception, module: Optional[str] = None) -> None:
-#     """Log an error with full traceback."""
-#     error_time = datetime.now()
-#     tb = traceback.format_exc()
+def log_error(error: Exception, module: Optional[str] = None) -> None:
+    """Log an error with full traceback."""
+    # Skip if this error has already been logged
+    if module and is_error_logged(error, module):
+        return
 
-#     # Log to console with full traceback
-#     console.print(f"❌ Error: {str(error)}\n{tb}")
+    error_time = datetime.now()
+    tb = traceback.format_exc()
 
-#     # Log to structured log
-#     log_structured(
-#         "error", message=str(error), module=module or "unknown", traceback=tb
-#     )
+    # Log to console with full traceback
+    console.print(f"❌ Error: {str(error)}\n{tb}")
 
-#     # Create detailed error report file
-#     error_dir = LOG_DIR / "errors"
-#     error_dir.mkdir(exist_ok=True)
-#     error_filename = (
-#         f"error_{error_time.strftime('%Y%m%d_%H%M%S')}_{module or 'unknown'}.log"
-#     )
-#     error_file = error_dir / error_filename
+    # Log to structured log
+    log_structured(
+        "error", message=str(error), module=module or "unknown", traceback=tb
+    )
 
-#     with open(error_file, "w") as f:
-#         f.write("=== uPlan Error Report ===\n")
-#         f.write(f"Timestamp: {error_time.isoformat()}\n")
-#         f.write(f"Module: {module or 'unknown'}\n")
-#         f.write(f"Error: {error.__class__.__name__}: {str(error)}\n\n")
-#         f.write(f"=== Traceback ===\n{tb}\n")
+    # Create detailed error report file
+    error_dir = LOG_DIR / "errors"
+    error_dir.mkdir(exist_ok=True)
+    error_filename = (
+        f"error_{error_time.strftime('%Y%m%d_%H%M%S')}_{module or 'unknown'}.log"
+    )
+    error_file = error_dir / error_filename
 
-#         # Include exception chain if present
-#         if error.__cause__:
-#             f.write("\n=== Cause Chain ===\n")
-#             cause = error.__cause__
-#             while cause:
-#                 f.write(f"{cause.__class__.__name__}: {str(cause)}\n")
-#                 cause = cause.__cause__
+    with open(error_file, "w") as f:
+        f.write("=== uPlan Error Report ===\n")
+        f.write(f"Timestamp: {error_time.isoformat()}\n")
+        f.write(f"Module: {module or 'unknown'}\n")
+        f.write(f"Error: {error.__class__.__name__}: {str(error)}\n\n")
+        f.write(f"=== Traceback ===\n{tb}\n")
+
+        # Include exception chain if present
+        if error.__cause__:
+            f.write("\n=== Cause Chain ===\n")
+            cause = error.__cause__
+            while cause:
+                f.write(f"{cause.__class__.__name__}: {str(cause)}\n")
+                cause = cause.__cause__
+
+    console.print(f"📝 Error report: {error_file}", style="yellow")
+
+    # Mark this error as logged
+    if module:
+        mark_error_logged(error, module)
