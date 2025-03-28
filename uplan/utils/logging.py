@@ -271,34 +271,38 @@ def setup_logging(level: Optional[int] = None) -> logging.Logger:
     logging.setLoggerClass(StructuredLogger)
 
     logger = logging.getLogger("uplan")
-    logger.setLevel(log_level)
 
-    # Clear existing handlers
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
+    # Only set up logging if it hasn't already been configured
+    if not logger.hasHandlers():
+        logger.setLevel(log_level)
 
-    # Console handler with rich formatting
-    console_handler = RichHandler(
-        rich_tracebacks=True,
-        markup=True,
-        show_path=False,
-        log_time_format="[%X]",
-    )
-    console_handler.setLevel(log_level)
-    console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    logger.addHandler(console_handler)
+        # Console handler with rich formatting
+        console_handler = RichHandler(
+            rich_tracebacks=True,
+            markup=True,
+            show_path=False,
+            log_time_format="[%X]",
+        )
+        console_handler.setLevel(log_level)
+        logger.addHandler(console_handler)
 
-    # JSON file handler for structured logging
-    log_file = LOG_DIR / f"uplan_{datetime.now().strftime('%Y%m%d')}.log"
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(log_level)
-    file_handler.setFormatter(JSONFormatter(LOG_FORMAT))
-    logger.addHandler(file_handler)
+        # JSON file handler for structured logging
+        log_file = LOG_DIR / f"uplan_{datetime.now().strftime('%Y%m%d')}.log"
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(JSONFormatter(LOG_FORMAT))
+        logger.addHandler(file_handler)
+    else:
+        # If handlers exist but level needs to be changed
+        if logger.level != log_level:
+            logger.setLevel(log_level)
+            for handler in logger.handlers:
+                handler.setLevel(log_level)
 
     return logger
 
 
-# Create global logger instance
+# Create global logger instance - will only set up once
 _logger = setup_logging()
 
 
