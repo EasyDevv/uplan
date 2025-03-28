@@ -293,6 +293,8 @@ async def get_all(
 ) -> Tuple[dict, dict]:
     """Generate both plan and todo documents in sequence with streaming support."""
     # Generate plan first
+    print(f"get_all: Generating plan")
+
     answers_data = prepare_answers(input_folder)
     plan_response = await get_plan(
         output_folder=output_folder,
