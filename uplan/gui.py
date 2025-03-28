@@ -3,8 +3,6 @@
 Provides the GUI interface through NiceGUI framework.
 """
 
-from nicegui import ui
-
 from uplan.app import create_app
 
 

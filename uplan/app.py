@@ -69,8 +69,8 @@ class UPlanApp:
         ui.run(
             title=options.get("title", "UPlan"),
             favicon=options.get("favicon", "✅"),
-            reload=options.get("reload", False),
-            show=options.get("show", True),
+            reload=options.get("reload", True),
+            show=options.get("show", False),
             dark=options.get("dark", True),
         )
 

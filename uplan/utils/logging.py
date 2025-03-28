@@ -40,21 +40,6 @@ LOG_DIR.mkdir(exist_ok=True)
 current_func_name = contextvars.ContextVar("current_func_name", default=None)
 
 
-def get_current_func_name() -> str:
-    """
-    Get the name of the current function from context or fallback to inspect.
-
-    Returns:
-        str: Current function name
-    """
-    name = current_func_name.get()
-    if name is None:
-        # Fallback to inspect if not set by decorator
-        frame = inspect.currentframe().f_back
-        name = frame.f_code.co_name if frame else "unknown"
-    return name
-
-
 @dataclass
 class MetricsData:
     """Container for performance metrics data."""
@@ -80,6 +65,11 @@ class StructuredLogRecord(logging.LogRecord):
         super().__init__(*args, **kwargs)
         self.structured_data = {}
 
+        # Automatically include current function name from context if available
+        func_name = current_func_name.get()
+        if func_name is not None:
+            self.funcName = func_name
+
 
 class StructuredLogger(logging.Logger):
     """Logger that supports structured data logging."""
@@ -99,6 +89,16 @@ class StructuredLogger(logging.Logger):
     ):
         """Create a LogRecord with structured data support."""
         rv = StructuredLogRecord(name, level, fn, lno, msg, args, exc_info, func, sinfo)
+
+        # Add function name from context automatically if not explicitly provided
+        if extra is None:
+            extra = {}
+
+        if "function" not in extra:
+            func_name = current_func_name.get()
+            if func_name is not None:
+                extra["function"] = func_name
+
         if extra is not None:
             for key in extra:
                 if key in ["message", "asctime"]:
@@ -319,40 +319,38 @@ def log_command(cmd_args: list) -> None:
     log_structured("command_execution", command=" ".join(cmd_args))
 
 
-def log_error(error: Exception, module: Optional[str] = None) -> None:
-    """Log an error with full traceback."""
-    error_time = datetime.now()
-    tb = traceback.format_exc()
+# def log_error(error: Exception, module: Optional[str] = None) -> None:
+#     """Log an error with full traceback."""
+#     error_time = datetime.now()
+#     tb = traceback.format_exc()
 
-    # Log to console with full traceback
-    console.print(f"❌ Error: {str(error)}\n{tb}")
+#     # Log to console with full traceback
+#     console.print(f"❌ Error: {str(error)}\n{tb}")
 
-    # Log to structured log
-    log_structured(
-        "error", message=str(error), module=module or "unknown", traceback=tb
-    )
+#     # Log to structured log
+#     log_structured(
+#         "error", message=str(error), module=module or "unknown", traceback=tb
+#     )
 
-    # Create detailed error report file
-    error_dir = LOG_DIR / "errors"
-    error_dir.mkdir(exist_ok=True)
-    error_filename = (
-        f"error_{error_time.strftime('%Y%m%d_%H%M%S')}_{module or 'unknown'}.log"
-    )
-    error_file = error_dir / error_filename
+#     # Create detailed error report file
+#     error_dir = LOG_DIR / "errors"
+#     error_dir.mkdir(exist_ok=True)
+#     error_filename = (
+#         f"error_{error_time.strftime('%Y%m%d_%H%M%S')}_{module or 'unknown'}.log"
+#     )
+#     error_file = error_dir / error_filename
 
-    with open(error_file, "w") as f:
-        f.write("=== uPlan Error Report ===\n")
-        f.write(f"Timestamp: {error_time.isoformat()}\n")
-        f.write(f"Module: {module or 'unknown'}\n")
-        f.write(f"Error: {error.__class__.__name__}: {str(error)}\n\n")
-        f.write(f"=== Traceback ===\n{tb}\n")
+#     with open(error_file, "w") as f:
+#         f.write("=== uPlan Error Report ===\n")
+#         f.write(f"Timestamp: {error_time.isoformat()}\n")
+#         f.write(f"Module: {module or 'unknown'}\n")
+#         f.write(f"Error: {error.__class__.__name__}: {str(error)}\n\n")
+#         f.write(f"=== Traceback ===\n{tb}\n")
 
-        # Include exception chain if present
-        if error.__cause__:
-            f.write("\n=== Cause Chain ===\n")
-            cause = error.__cause__
-            while cause:
-                f.write(f"{cause.__class__.__name__}: {str(cause)}\n")
-                cause = cause.__cause__
-
-    console.print(f"📝 Error report: {error_file}", style="yellow")
+#         # Include exception chain if present
+#         if error.__cause__:
+#             f.write("\n=== Cause Chain ===\n")
+#             cause = error.__cause__
+#             while cause:
+#                 f.write(f"{cause.__class__.__name__}: {str(cause)}\n")
+#                 cause = cause.__cause__

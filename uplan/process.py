@@ -28,9 +28,7 @@ from uplan.utils.stream import StreamController
 from uplan.utils.logging import (
     get_logger,
     log_async_function,
-    log_error,
     trace_function,
-    get_current_func_name,  # Import the new helper function
 )
 from uplan.ui.state import AppState
 
@@ -54,10 +52,9 @@ async def run(
     **litellm_kwargs,
 ) -> dict:
     """Run LLM inference with streaming support."""
-    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         f"Starting LLM inference",
-        extra={"function": func_name, "model": model, "prompt_title": prompt_title},
+        extra={"model": model, "prompt_title": prompt_title},
     )
     display_json_panel(prompt, title=prompt_title, border_style="green")
 
@@ -155,7 +152,6 @@ async def run(
             display_text_panel(text=f"Invalid JSON format: {je}")
             logger.error("JSON decode error", extra={"error": str(je)})
         except Exception as e:
-            log_error(e, "run_process")
             raise
 
         # Check if we need to exit the retry loop completely due to stop request
@@ -192,10 +188,9 @@ async def get_plan(
     Returns:
         dict: Response containing status and generated plan data
     """
-    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         "Starting plan generation process",
-        extra={"function": func_name, "model": model, "retry": retry},
+        extra={"model": model, "retry": retry},
     )
 
     try:
@@ -212,13 +207,11 @@ async def get_plan(
         logger.info(
             "Plan generation completed",
             extra={
-                "function": func_name,
                 "output_file": str(output_folder / "plan.toml"),
             },
         )
         return response
     except Exception as e:
-        log_error(e, func_name)
         return {"status": "error", "message": str(e)}
 
 
@@ -232,10 +225,9 @@ async def get_todo(
     **litellm_kwargs,
 ) -> dict:
     """Execute todo generation process."""
-    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         "Starting todo generation process",
-        extra={"function": func_name, "model": model, "retry": retry},
+        extra={"model": model, "retry": retry},
     )
 
     try:
@@ -264,7 +256,6 @@ async def get_todo(
         logger.info(
             "Todo generation completed",
             extra={
-                "function": func_name,
                 "output_files": [
                     str(output_folder / "todo.toml"),
                     str(output_folder / "todo.md"),
@@ -274,7 +265,6 @@ async def get_todo(
         )
         return response
     except Exception as e:
-        log_error(e, func_name)
         return {"status": "error", "message": str(e)}
 
 
@@ -338,11 +328,9 @@ async def get_all(
     **litellm_kwargs,
 ) -> Tuple[dict, dict]:
     """Generate both plan and todo documents in sequence with streaming support."""
-    func_name = get_current_func_name()  # Use the helper function instead of inspect
     logger.info(
         "Starting combined plan and todo generation",
         extra={
-            "function": func_name,
             "model": model,
             "retry": retry,
             "input_folder": str(input_folder),
@@ -363,7 +351,7 @@ async def get_all(
     if plan_response.get("status") in ["exit", "error", "stopped"]:
         logger.warning(
             "Plan generation stopped or failed",
-            extra={"function": func_name, "status": plan_response.get("status")},
+            extra={"status": plan_response.get("status")},
         )
         return plan_response, {"status": "skipped"}
 
@@ -372,7 +360,6 @@ async def get_all(
     if state.stop_requested:
         logger.info(
             "Processing stopped by user during plan generation",
-            extra={"function": func_name},
         )
         return plan_response, {"status": "stopped"}
 
@@ -390,7 +377,6 @@ async def get_all(
     logger.info(
         "Combined generation completed",
         extra={
-            "function": func_name,
             "plan_status": plan_response.get("status"),
             "todo_status": todo_response.get("status"),
         },
