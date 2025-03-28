@@ -4,9 +4,10 @@ Module for processing and generating development plans and to-do lists using LLM
 
 import json
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple
+from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple, Awaitable
 
 import litellm
+from regex import E
 import tomli_w
 import tomllib
 from rich import print
@@ -21,6 +22,16 @@ from uplan.utils.display import (
 )
 from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
+import logging
+import traceback
+
+
+# 로그 설정
+logging.basicConfig(
+    filename="error.log",
+    level=logging.ERROR,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 
 async def run(
@@ -33,7 +44,7 @@ async def run(
     model: str = None,
     stream: bool = True,
     debug: bool = False,
-    stream_handler: Optional[Callable[[str], Any]] = None,
+    stream_handler: Optional[Callable[[str], Awaitable[Any]]] = None,
     **litellm_kwargs,
 ) -> dict:
     """Run LLM inference with streaming support."""
@@ -85,7 +96,9 @@ async def run(
         except json.JSONDecodeError as je:
             display_text_panel(text=f"Invalid JSON format: {je}")
         except Exception as e:
-            display_text_panel(text=f"Error processing response: {e}")
+            logging.error(f"Error processing response: {traceback.format_exc()}")
+            raise e
+            # display_text_panel(text=f"Error processing response: {e}")
         if attempt < max_retries:
             display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
 
@@ -98,7 +111,7 @@ async def get_plan(
     model: str,
     retry: int,
     answers_data: dict,
-    stream_handler: Optional[Callable[[str], Any]] = None,
+    stream_handler: Optional[Callable[[str], Awaitable[Any]]] = None,
     **litellm_kwargs,
 ) -> dict:
     """
@@ -137,7 +150,7 @@ async def get_todo(
     model: str,
     retry: int,
     todo: dict,
-    stream_handler: Optional[Callable[[str], Any]] = None,
+    stream_handler: Optional[Callable[[str], Awaitable[Any]]] = None,
     **litellm_kwargs,
 ) -> dict:
     """Execute todo generation process."""
@@ -226,7 +239,7 @@ async def get_all(
     output_folder: Path,
     model: str,
     retry: int,
-    stream_handler: Optional[Callable[[str], Any]] = None,
+    stream_handler: Optional[Callable[[str], Awaitable[Any]]] = None,
     **litellm_kwargs,
 ) -> Tuple[dict, dict]:
     """Generate both plan and todo documents in sequence with streaming support."""
