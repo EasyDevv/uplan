@@ -93,9 +93,15 @@ async def run(
 
     for attempt in range(1, max_retries + 1):
         try:
+            # Define reusable stop response
+            stop_response = {
+                "status": "stopped",
+                "message": "Processing stopped by user",
+            }
+
             # Check if cancelled before starting
             if controller.stop_requested:
-                return {"status": "stopped", "message": "Processing stopped by user"}
+                return stop_response
 
             # Create task and wrap with controller
             response_llm = litellm.acompletion(
@@ -105,30 +111,19 @@ async def run(
                 **litellm_kwargs,
             )
 
-            # Use the controller to manage the task
             try:
-                response = await controller.run_cancellable(
-                    asyncio.wait_for(response_llm, timeout=120)
-                )
-            except asyncio.CancelledError:
-                return {"status": "stopped", "message": "Processing stopped by user"}
+                # Process the LLM response with timeout
+                response = await asyncio.wait_for(response_llm, timeout=120)
 
-            if stream:
-                # Process streaming response with cancellation support
-                try:
+                # Handle streaming or non-streaming response
+                if stream:
                     text = await controller.run_cancellable(process_stream(response))
                     if controller.stop_requested:
-                        return {
-                            "status": "stopped",
-                            "message": "Processing stopped by user",
-                        }
-                except asyncio.CancelledError:
-                    return {
-                        "status": "stopped",
-                        "message": "Processing stopped by user",
-                    }
-            else:
-                text = response.choices[0].message.content
+                        return stop_response
+                else:
+                    text = response.choices[0].message.content
+            except asyncio.CancelledError:
+                return stop_response
 
             dict_block = extract_code_block(text)
             json_block = json.loads(dict_block)
@@ -144,13 +139,13 @@ async def run(
 
         except asyncio.TimeoutError:
             display_text_panel(text=f"Request timed out after 120 seconds")
-            logger.error("Request timeout", extra={"timeout": 120})
+            return logger.error("Request timeout", extra={"timeout": 120})
         except asyncio.CancelledError:
             logger.info("Request cancelled by user")
             return {"status": "stopped", "message": "Processing stopped by user"}
         except json.JSONDecodeError as je:
             display_text_panel(text=f"Invalid JSON format: {je}")
-            logger.error("JSON decode error", extra={"error": str(je)})
+            return logger.error("JSON decode error", extra={"error": str(je)})
         except Exception as e:
             raise
 

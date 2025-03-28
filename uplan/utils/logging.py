@@ -43,23 +43,6 @@ current_func_name = contextvars.ContextVar("current_func_name", default=None)
 logged_errors = contextvars.ContextVar("logged_errors", default=set())
 
 
-@dataclass
-class MetricsData:
-    """Container for performance metrics data."""
-
-    count: int = 0
-    total_time: float = 0
-    avg_time: float = 0
-    max_time: float = 0
-
-    def update(self, execution_time: float) -> None:
-        """Update metrics with new execution time."""
-        self.count += 1
-        self.total_time += execution_time
-        self.avg_time = self.total_time / self.count
-        self.max_time = max(self.max_time, execution_time)
-
-
 class StructuredLogRecord(logging.LogRecord):
     """Extended LogRecord that adds structured data for JSON logging."""
 
