@@ -21,12 +21,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional, Union, Set
 
-from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install as install_rich_traceback
 
 # Initialize rich console and install rich traceback handler
-console = Console()
 install_rich_traceback(show_locals=True)
 
 # Global variables
@@ -219,24 +217,25 @@ def log_function_event(
     """Log function-related events with consistent formatting."""
     prefix = "async " if is_async else ""
     func_name = call_info["function"]
+    logger = get_logger()
 
     if event_type == "entry":
-        console.print(
+        structured_data = {"type": "function_entry", **call_info, "is_async": is_async}
+        logger.info(
             f"▶️ Entering {prefix}{func_name} from {call_info['caller']}",
-            style="bright_blue",
+            extra={"structured_data": structured_data},
         )
-        log_structured("function_entry", **call_info, is_async=is_async)
     elif event_type == "exit":
-        console.print(
-            f"✅ Exited {prefix}{func_name} in {elapsed:.4f}s",
-            style="green",
-        )
-        log_structured(
-            "function_exit",
+        structured_data = {
+            "type": "function_exit",
             **call_info,
-            status="success",
-            execution_time=elapsed,
-            is_async=is_async,
+            "status": "success",
+            "execution_time": elapsed,
+            "is_async": is_async,
+        }
+        logger.info(
+            f"✅ Exited {prefix}{func_name} in {elapsed:.4f}s",
+            extra={"structured_data": structured_data},
         )
     elif event_type == "error":
         # Check if this error has been logged already
@@ -247,18 +246,22 @@ def log_function_event(
         error_msg = f"❌ Error in {prefix}{func_name}:"
         details = str(error)
         tb_str = traceback.format_exc()
-        console.print(
-            f"{error_msg}\n{details}\n{tb_str}",
-            style="bold red",
-        )
-        log_structured(
-            "function_error",
+
+        # Direct logger call with structured data
+        structured_data = {
+            "type": "function_error",
             **call_info,
-            status="error",
-            execution_time=elapsed,
-            error=str(error),
-            traceback=tb_str,
-            is_async=is_async,
+            "status": "error",
+            "execution_time": elapsed,
+            "error": str(error),
+            "traceback": tb_str,
+            "is_async": is_async,
+        }
+        # Use logger for error output instead of console.print
+        logger.error(
+            f"{error_msg}\n{details}",
+            exc_info=True,  # Include exception info for rich traceback
+            extra={"structured_data": structured_data},
         )
 
         # Mark this error as logged to prevent duplicates
@@ -309,32 +312,6 @@ _logger = setup_logging()
 def get_logger() -> logging.Logger:
     """Get the uplan logger instance."""
     return _logger
-
-
-def log_structured(
-    log_type: str, level: str = "info", message: str = "", **kwargs
-) -> None:
-    """Add structured log entry with custom fields.
-
-    Args:
-        log_type: Type of log entry to categorize logs
-        level: Log level (info, error, warning, debug, critical)
-        message: The actual log message
-        **kwargs: Additional structured data fields
-    """
-    logger = get_logger()
-
-    # Create log entry data
-    log_data = {"type": log_type, **kwargs}
-
-    # Use proper message or generate one if empty
-    log_message = message or f"{log_type.replace('_', ' ').title()}"
-
-    # Select appropriate log method based on level
-    log_method = getattr(logger, level.lower(), logger.info)
-
-    # Send to logger with proper level
-    log_method(log_message, extra={"structured_data": log_data})
 
 
 def trace_function(func: Callable) -> Callable:
