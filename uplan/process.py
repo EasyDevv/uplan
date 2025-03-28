@@ -3,6 +3,7 @@ Module for processing and generating development plans and to-do lists using LLM
 """
 
 import json
+import inspect
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple, Awaitable
 
@@ -24,17 +25,11 @@ from uplan.utils.display import (
 from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 from uplan.utils.stream import StreamController
-import logging
-import traceback
+from uplan.utils.logging import get_logger, log_async_function, LogContext, log_error
 from uplan.ui.state import AppState
 
-
-# 로그 설정
-logging.basicConfig(
-    filename="error.log",
-    level=logging.ERROR,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+# Initialize logger
+logger = get_logger()
 
 
 async def run(
@@ -52,6 +47,11 @@ async def run(
     **litellm_kwargs,
 ) -> dict:
     """Run LLM inference with streaming support."""
+    func_name = inspect.currentframe().f_code.co_name
+    logger.info(
+        f"Starting LLM inference",
+        extra={"function": func_name, "model": model, "prompt_title": prompt_title},
+    )
     display_json_panel(prompt, title=prompt_title, border_style="green")
 
     optimized_prompt = dict_to_xml(prompt)
@@ -94,7 +94,7 @@ async def run(
                 return {"status": "stopped", "message": "Processing stopped by user"}
 
             # Create task and wrap with controller
-            response_coro = litellm.acompletion(
+            response_llm = litellm.acompletion(
                 model=model,
                 messages=[{"content": optimized_prompt, "role": "user"}],
                 stream=stream,
@@ -104,7 +104,7 @@ async def run(
             # Use the controller to manage the task
             try:
                 response = await controller.run_cancellable(
-                    asyncio.wait_for(response_coro, timeout=120)
+                    asyncio.wait_for(response_llm, timeout=120)
                 )
             except asyncio.CancelledError:
                 return {"status": "stopped", "message": "Processing stopped by user"}
@@ -140,13 +140,16 @@ async def run(
 
         except asyncio.TimeoutError:
             display_text_panel(text=f"Request timed out after 120 seconds")
+            logger.error("Request timeout", extra={"timeout": 120})
         except asyncio.CancelledError:
+            logger.info("Request cancelled by user")
             return {"status": "stopped", "message": "Processing stopped by user"}
         except json.JSONDecodeError as je:
             display_text_panel(text=f"Invalid JSON format: {je}")
+            logger.error("JSON decode error", extra={"error": str(je)})
         except Exception as e:
-            logging.error(f"Error processing response: {traceback.format_exc()}")
-            raise traceback.format_exc()
+            log_error(e, "run_process")
+            raise
 
         # Check if we need to exit the retry loop completely due to stop request
         if controller.stop_requested:
@@ -181,6 +184,12 @@ async def get_plan(
     Returns:
         dict: Response containing status and generated plan data
     """
+    func_name = inspect.currentframe().f_code.co_name
+    logger.info(
+        "Starting plan generation process",
+        extra={"function": func_name, "model": model, "retry": retry},
+    )
+
     try:
         response = await run(
             prompt=answers_data,
@@ -192,9 +201,16 @@ async def get_plan(
             stream_handler=stream_handler,
             **litellm_kwargs,
         )
+        logger.info(
+            "Plan generation completed",
+            extra={
+                "function": func_name,
+                "output_file": str(output_folder / "plan.toml"),
+            },
+        )
         return response
     except Exception as e:
-        print(f"[red]Error processing plan: {str(e)}[/red]")
+        log_error(e, func_name)
         return {"status": "error", "message": str(e)}
 
 
@@ -207,6 +223,12 @@ async def get_todo(
     **litellm_kwargs,
 ) -> dict:
     """Execute todo generation process."""
+    func_name = inspect.currentframe().f_code.co_name
+    logger.info(
+        "Starting todo generation process",
+        extra={"function": func_name, "model": model, "retry": retry},
+    )
+
     try:
         response = await run(
             prompt=todo,
@@ -229,9 +251,21 @@ async def get_todo(
         json_dict = add_completed_status(json_block)
         with open(output_folder / "todo.json", "w", encoding="utf-8") as f:
             json.dump(json_dict, f, indent=2, ensure_ascii=False)
+
+        logger.info(
+            "Todo generation completed",
+            extra={
+                "function": func_name,
+                "output_files": [
+                    str(output_folder / "todo.toml"),
+                    str(output_folder / "todo.md"),
+                    str(output_folder / "todo.json"),
+                ],
+            },
+        )
         return response
     except Exception as e:
-        print(f"[red]Error processing todo: {str(e)}[/red]")
+        log_error(e, func_name)
         return {"status": "error", "message": str(e)}
 
 
@@ -292,9 +326,19 @@ async def get_all(
     **litellm_kwargs,
 ) -> Tuple[dict, dict]:
     """Generate both plan and todo documents in sequence with streaming support."""
-    # Generate plan first
-    print(f"get_all: Generating plan")
+    func_name = inspect.currentframe().f_code.co_name
+    logger.info(
+        "Starting combined plan and todo generation",
+        extra={
+            "function": func_name,
+            "model": model,
+            "retry": retry,
+            "input_folder": str(input_folder),
+            "output_folder": str(output_folder),
+        },
+    )
 
+    # Generate plan first
     answers_data = prepare_answers(input_folder)
     plan_response = await get_plan(
         output_folder=output_folder,
@@ -305,11 +349,19 @@ async def get_all(
         **litellm_kwargs,
     )
     if plan_response.get("status") in ["exit", "error", "stopped"]:
+        logger.warning(
+            "Plan generation stopped or failed",
+            extra={"function": func_name, "status": plan_response.get("status")},
+        )
         return plan_response, {"status": "skipped"}
 
     # Check if streaming was stopped during plan generation
     state = AppState.get_instance()
     if state.stop_requested:
+        logger.info(
+            "Processing stopped by user during plan generation",
+            extra={"function": func_name},
+        )
         return plan_response, {"status": "stopped"}
 
     # Generate todo using the created plan
@@ -321,5 +373,14 @@ async def get_all(
         todo=todo,
         stream_handler=stream_handler,
         **litellm_kwargs,
+    )
+
+    logger.info(
+        "Combined generation completed",
+        extra={
+            "function": func_name,
+            "plan_status": plan_response.get("status"),
+            "todo_status": todo_response.get("status"),
+        },
     )
     return plan_response, todo_response

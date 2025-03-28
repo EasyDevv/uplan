@@ -1,11 +1,15 @@
 """Options panel component for the right sidebar."""
 
+import inspect
 from pathlib import Path
 from nicegui import ui, app
 
 from uplan.utils.provider import check_model_support
 from uplan.ui.services.llm import LLMService
 from uplan.ui.services.planner import PlannerService
+from uplan.utils.logging import get_logger
+
+logger = get_logger()
 from uplan.ui.services.stream_service import StreamService
 from uplan.ui.state import AppState
 
@@ -113,6 +117,15 @@ def create_options() -> None:
                         operation_type: The type of operation to process ('plan', 'todo', or 'all')
                         display_name: The display name to show in the UI
                     """
+                    func_name = inspect.currentframe().f_code.co_name
+                    logger.info(
+                        f"Processing operation",
+                        extra={
+                            "function": func_name,
+                            "operation_type": operation_type,
+                            "display_name": display_name,
+                        },
+                    )
                     try:
                         loading_indicator.classes("visible")
                         state.reset_processing()
@@ -151,14 +164,27 @@ def create_options() -> None:
 
                 async def on_plan_click() -> None:
                     """Handle plan button click."""
+                    func_name = inspect.currentframe().f_code.co_name
+                    logger.info(
+                        f"Starting plan generation", extra={"function": func_name}
+                    )
                     await process_operation("plan", "Plan")
 
                 async def on_todo_click() -> None:
                     """Handle todo button click."""
+                    func_name = inspect.currentframe().f_code.co_name
+                    logger.info(
+                        f"Starting todo generation", extra={"function": func_name}
+                    )
                     await process_operation("todo", "Todo List")
 
                 async def on_all_click() -> None:
                     """Handle all (plan + todo) button click."""
+                    func_name = inspect.currentframe().f_code.co_name
+                    logger.info(
+                        f"Starting combined plan & todo generation",
+                        extra={"function": func_name},
+                    )
                     await process_operation("all", "Plan & Todo")
 
                 def on_stop_click() -> None:

@@ -1,12 +1,18 @@
 """Main content area component."""
 
 import hashlib
+import inspect
 from datetime import datetime
 from asyncio import Lock
 from nicegui import ui
 from typing_extensions import Any
-from uplan.ui.state import AppState  # Add import for AppState
+
+from uplan.ui.state import AppState
 from uplan.ui.services.stream_service import StreamService
+from uplan.utils.logging import get_logger
+
+# Initialize logger
+logger = get_logger()
 
 
 class ContentManager:
@@ -75,6 +81,11 @@ class ContentManager:
             text: Text to append as a new card
             is_complete: Flag indicating if this is the final update in a stream
         """
+        func_name = inspect.currentframe().f_code.co_name
+        logger.debug(
+            "Updating content",
+            extra={"function": func_name, "is_complete": is_complete},
+        )
         # Check if streaming has been stopped
         state = AppState.get_instance()
         if state.stop_streaming:
@@ -112,6 +123,15 @@ async def handle_stream_update(
         text: Text to append as a new card
         is_complete: Flag indicating if this is the final update in a stream
     """
+    func_name = inspect.currentframe().f_code.co_name
+    logger.debug(
+        "Handling stream update",
+        extra={
+            "function": func_name,
+            "is_complete": is_complete,
+            "container_exists": container is not None,
+        },
+    )
     # Check if streaming has been stopped before proceeding
     state = AppState.get_instance()
     if state.stop_streaming:
@@ -152,6 +172,12 @@ def create_content(stream_service: StreamService) -> None:
         )
 
         async def on_stream_created(stream_id: str) -> None:
+            """Handle stream creation event."""
+            func_name = inspect.currentframe().f_code.co_name
+            logger.info(
+                "Creating new stream",
+                extra={"function": func_name, "stream_id": stream_id},
+            )
             with content_container:
                 card = ui.card().classes("w-full mb-4 h-auto")
                 new_content = ui.markdown("").classes(
