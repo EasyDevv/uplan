@@ -42,3 +42,5 @@ def create_options() -> None:
                 with ui.card().classes("w-full mb-4"):
                     ui.label("Max Retries").classes("text-sm font-medium mb-1")
                     ui.number(value=5, min=1, max=10).classes("w-full")
+
+                ui.button("Plan").classes("w-full")

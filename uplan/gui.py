@@ -34,8 +34,6 @@ def main():
     init_app()
     ui.run(
         title="UPlan",
-        host="127.0.0.1",
-        port=8080,
         reload=True,
         show=False,
         dark=True,
