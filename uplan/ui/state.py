@@ -6,6 +6,7 @@ This module implements a reactive singleton state pattern for the application.
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, Optional, ClassVar, Callable
+from uplan.utils.stream import StreamController
 
 
 @dataclass
@@ -28,8 +29,10 @@ class AppState:
     # Processing state
     processing: bool = False
     error_message: Optional[str] = None
-    _stop_streaming: bool = False  # Flag to stop streaming process
     current_task: Optional[Callable] = None
+
+    # Stream controller for managing streaming operations
+    stream_controller: StreamController = field(default_factory=StreamController)
 
     # Response data
     llm_response: Dict = field(default_factory=dict)
@@ -99,19 +102,20 @@ class AppState:
         logging.debug("Resetting processing state")
         self.processing = False
         self.error_message = None
-        self._stop_streaming = False
+        self.stream_controller.reset()
 
         for callback in self._on_update_callbacks.values():
             callback(self)
 
     @property
-    def stop_streaming(self):
-        return self._stop_streaming
+    def stop_streaming(self) -> bool:
+        """Backward compatibility for stop_streaming property."""
+        return self.stream_controller.stop_requested
 
     @stop_streaming.setter
-    def stop_streaming(self, value):
-        logging.debug(f"Setting stop_streaming to {value}")
-        self._stop_streaming = value
-        # Cancel the current task if stop_streaming is set to True
-        if value and self.current_task:
-            self.current_task.cancel()
+    def stop_streaming(self, value: bool) -> None:
+        """Backward compatibility setter for stop_streaming."""
+        if value:
+            self.stream_controller.request_stop()
+        else:
+            self.stream_controller.reset()

@@ -134,7 +134,8 @@ def create_options() -> None:
 
                 def on_stop_click() -> None:
                     """Handle stop button click."""
-                    state.stop_streaming = True
+                    state = AppState.get_instance()
+                    state.stream_controller.request_stop()
                     ui.notify("Stopping LLM processing...", type="info")
 
                 with ui.row().classes("w-full gap-2"):

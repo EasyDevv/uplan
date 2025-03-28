@@ -27,10 +27,7 @@ class LLMService:
     async def _reset_state(self) -> None:
         """Reset processing state."""
         self.state.processing = False
-        self.state.stop_streaming = False
-        if self._current_task and not self._current_task.done():
-            self._current_task.cancel()
-            self._current_task = None
+        self.state.stream_controller.reset()
 
     async def process_request(
         self,
@@ -46,16 +43,24 @@ class LLMService:
             self.state.processing = True
             self.state.error_message = None
 
-            self._current_task = asyncio.create_task(
-                get_all(
-                    input_folder=Path(self.state.input_path),
-                    output_folder=Path(self.state.output_path),
-                    model=self.state.model,
-                    retry=5,  # Default retry count
-                    stream_handler=stream_handler,
+            # Use stream_controller to run the task
+            try:
+                (
+                    plan_response,
+                    todo_response,
+                ) = await self.state.stream_controller.run_cancellable(
+                    get_all(
+                        input_folder=Path(self.state.input_path),
+                        output_folder=Path(self.state.output_path),
+                        model=self.state.model,
+                        retry=5,
+                        stream_handler=stream_handler,
+                        stream_controller=self.state.stream_controller,
+                    )
                 )
-            )
-            plan_response, todo_response = await self._current_task
+            except asyncio.CancelledError:
+                self.state.error_message = "Request was cancelled"
+                return
 
             if plan_response.get("status") in ["exit", "error"]:
                 self.state.error_message = "Failed to generate plan"
@@ -71,8 +76,6 @@ class LLMService:
                 "todo": todo_response.get("data", {}),
             }
 
-        except asyncio.CancelledError:
-            self.state.error_message = "Request was cancelled"
         except Exception as e:
             self.state.error_message = f"Error: {str(e)}"
         finally:

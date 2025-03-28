@@ -23,6 +23,7 @@ from uplan.utils.display import (
 )
 from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
+from uplan.utils.stream import StreamController
 import logging
 import traceback
 from uplan.ui.state import AppState
@@ -47,6 +48,7 @@ async def run(
     stream: bool = True,
     debug: bool = False,
     stream_handler: Optional[Callable[[str], Awaitable[Any]]] = None,
+    stream_controller: Optional[StreamController] = None,
     **litellm_kwargs,
 ) -> dict:
     """Run LLM inference with streaming support."""
@@ -58,16 +60,20 @@ async def run(
     if debug:
         display_text_panel(optimized_prompt, title=prompt_title, border_style="green")
 
+    # Get controller from AppState if not provided
+    controller = stream_controller or AppState.get_instance().stream_controller
+
     async def process_stream(response: AsyncIterator[Any]) -> str:
         """Process streaming response and update UI."""
         full_text = ""
-        state = AppState.get_instance()
         try:
             async for chunk in response:
-                if state.stop_streaming:
+                # Check for cancellation
+                if controller.stop_requested:
                     if hasattr(response, "aclose"):
                         await response.aclose()
                     return full_text
+
                 if chunk and chunk.choices and chunk.choices[0].delta.content:
                     text_chunk = chunk.choices[0].delta.content
                     full_text += text_chunk
@@ -76,49 +82,47 @@ async def run(
                             await stream_handler(full_text)
                         except TypeError:
                             pass
-                if state.stop_streaming:
-                    return full_text
         except asyncio.CancelledError:
             return full_text
+
         return full_text
 
     for attempt in range(1, max_retries + 1):
         try:
-            state = AppState.get_instance()
-            if state.stop_streaming:
+            # Check if cancelled before starting
+            if controller.stop_requested:
                 return {"status": "stopped", "message": "Processing stopped by user"}
 
-            timeout = 120  # seconds
-            response_task = asyncio.create_task(
-                litellm.acompletion(
-                    model=model,
-                    messages=[{"content": optimized_prompt, "role": "user"}],
-                    stream=stream,
-                    **litellm_kwargs,
-                )
+            # Create task and wrap with controller
+            response_coro = litellm.acompletion(
+                model=model,
+                messages=[{"content": optimized_prompt, "role": "user"}],
+                stream=stream,
+                **litellm_kwargs,
             )
-            response = await asyncio.wait_for(response_task, timeout=timeout)
+
+            # Use the controller to manage the task
+            try:
+                response = await controller.run_cancellable(
+                    asyncio.wait_for(response_coro, timeout=120)
+                )
+            except asyncio.CancelledError:
+                return {"status": "stopped", "message": "Processing stopped by user"}
 
             if stream:
-                stream_task = asyncio.create_task(process_stream(response))
-                while not stream_task.done():
-                    if state.stop_streaming:
-                        logging.info("Cancelling stream task")
-                        try:
-                            # Attempt to cancel the stream task
-                            stream_task.cancel()
-                            # Allow a short timeout for cancellation to take effect
-                            await asyncio.wait_for(stream_task, timeout=0.5)
-                        except (asyncio.CancelledError, asyncio.TimeoutError):
-                            # Expected behavior during cancellation
-                            pass
-                        finally:
-                            return {
-                                "status": "stopped",
-                                "message": "Processing stopped by user",
-                            }
-                    await asyncio.sleep(0.05)  # Check more frequently for stop signal
-                text = await stream_task
+                # Process streaming response with cancellation support
+                try:
+                    text = await controller.run_cancellable(process_stream(response))
+                    if controller.stop_requested:
+                        return {
+                            "status": "stopped",
+                            "message": "Processing stopped by user",
+                        }
+                except asyncio.CancelledError:
+                    return {
+                        "status": "stopped",
+                        "message": "Processing stopped by user",
+                    }
             else:
                 text = response.choices[0].message.content
 
@@ -135,7 +139,7 @@ async def run(
             return {"status": "success", "data": json_block, "output_file": output_file}
 
         except asyncio.TimeoutError:
-            display_text_panel(text=f"Request timed out after {timeout} seconds")
+            display_text_panel(text=f"Request timed out after 120 seconds")
         except asyncio.CancelledError:
             return {"status": "stopped", "message": "Processing stopped by user"}
         except json.JSONDecodeError as je:
@@ -145,8 +149,7 @@ async def run(
             raise traceback.format_exc()
 
         # Check if we need to exit the retry loop completely due to stop request
-        state = AppState.get_instance()
-        if state.stop_streaming:
+        if controller.stop_requested:
             return {"status": "stopped", "message": "Processing stopped by user"}
 
         if attempt < max_retries:
@@ -277,10 +280,6 @@ def prepare_answers(input_folder: Path) -> dict:
     except FileNotFoundError:
         raise RuntimeError(f"Failed to read plan.toml in {input_folder}")
 
-    # form = answers_data.get("form")
-    # if form is None:
-    #     raise RuntimeError("No form found in plan.toml")
-
     return answers_data
 
 
@@ -308,7 +307,7 @@ async def get_all(
 
     # Check if streaming was stopped during plan generation
     state = AppState.get_instance()
-    if state.stop_streaming:
+    if state.stop_requested:
         return plan_response, {"status": "stopped"}
 
     # Generate todo using the created plan
