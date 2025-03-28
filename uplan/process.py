@@ -25,13 +25,19 @@ from uplan.utils.display import (
 from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 from uplan.utils.stream import StreamController
-from uplan.utils.logging import get_logger, log_async_function, LogContext, log_error
+from uplan.utils.logging import (
+    get_logger,
+    log_async_function,
+    log_error,
+    trace_function,
+)
 from uplan.ui.state import AppState
 
 # Initialize logger
 logger = get_logger()
 
 
+@log_async_function
 async def run(
     prompt_title: str,
     extracted_title: str,
@@ -162,6 +168,7 @@ async def run(
     raise Exception("Max retries exceeded")
 
 
+@log_async_function
 async def get_plan(
     output_folder: Path,
     model: str,
@@ -214,6 +221,7 @@ async def get_plan(
         return {"status": "error", "message": str(e)}
 
 
+@log_async_function
 async def get_todo(
     output_folder: Path,
     model: str,
@@ -269,6 +277,7 @@ async def get_todo(
         return {"status": "error", "message": str(e)}
 
 
+@trace_function
 def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     """
     Read and merge todo and plan TOML files.
@@ -295,6 +304,7 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     return todo
 
 
+@trace_function
 def prepare_answers(input_folder: Path) -> dict:
     """
     Read and validate the plan form from input folder.
@@ -317,6 +327,7 @@ def prepare_answers(input_folder: Path) -> dict:
     return answers_data
 
 
+@log_async_function
 async def get_all(
     input_folder: Path,
     output_folder: Path,

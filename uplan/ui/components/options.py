@@ -7,13 +7,14 @@ from nicegui import ui, app
 from uplan.utils.provider import check_model_support
 from uplan.ui.services.llm import LLMService
 from uplan.ui.services.planner import PlannerService
-from uplan.utils.logging import get_logger
+from uplan.utils.logging import get_logger, log_async_function, trace_function
 
 logger = get_logger()
 from uplan.ui.services.stream_service import StreamService
 from uplan.ui.state import AppState
 
 
+@trace_function
 def create_option_card(title: str, value: str, placeholder: str) -> ui.input:
     """Create a card for a configuration option.
 
@@ -31,6 +32,7 @@ def create_option_card(title: str, value: str, placeholder: str) -> ui.input:
         return input_element
 
 
+@trace_function
 def create_options() -> None:
     """Create the options panel in the right sidebar."""
     # Initialize application state
@@ -79,6 +81,7 @@ def create_options() -> None:
                 # Loading indicator
                 loading_indicator = ui.spinner("dots").classes("hidden")
 
+                @log_async_function
                 async def connect_to_stream(stream_id: str, operation_type: str):
                     """Connect to a stream by ID and display results.
 
@@ -108,6 +111,7 @@ def create_options() -> None:
                             )
                             await stream_service.bind_to_ui_element(stream_id, content)
 
+                @log_async_function
                 async def process_operation(
                     operation_type: str, display_name: str
                 ) -> None:
@@ -162,6 +166,7 @@ def create_options() -> None:
                     finally:
                         loading_indicator.classes("hidden")
 
+                @log_async_function
                 async def on_plan_click() -> None:
                     """Handle plan button click."""
                     func_name = inspect.currentframe().f_code.co_name
@@ -170,6 +175,7 @@ def create_options() -> None:
                     )
                     await process_operation("plan", "Plan")
 
+                @log_async_function
                 async def on_todo_click() -> None:
                     """Handle todo button click."""
                     func_name = inspect.currentframe().f_code.co_name
@@ -178,6 +184,7 @@ def create_options() -> None:
                     )
                     await process_operation("todo", "Todo List")
 
+                @log_async_function
                 async def on_all_click() -> None:
                     """Handle all (plan + todo) button click."""
                     func_name = inspect.currentframe().f_code.co_name
@@ -187,6 +194,7 @@ def create_options() -> None:
                     )
                     await process_operation("all", "Plan & Todo")
 
+                @trace_function
                 def on_stop_click() -> None:
                     """Handle stop button click."""
                     state = AppState.get_instance()
