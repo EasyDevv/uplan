@@ -281,7 +281,9 @@ def setup_logging() -> logging.Logger:
     # logger.addHandler(file_handler)
 
     # 기본 라이브러리 로거 전파 방지 (선택적)
-    # logger.propagate = False
+    # uplan_tracer 로거에게 "네게 연결된 핸들러들(RichHandler, JsonFileHandler)이 로그 레코드를 처리하고 나면,
+    # 더 이상 상위 로거로 이 레코드를 전달하지 마라"고 지시하는 것입니다.
+    logger.propagate = False
 
     return logger
 

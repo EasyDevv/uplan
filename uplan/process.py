@@ -131,22 +131,12 @@ async def run(
                     text = response.choices[0].message.content
 
             except asyncio.CancelledError:
-                logger.info(
-                    "LLM request cancelled",
-                    extra={"event_type": "llm_request_cancelled", "attempt": attempt},
-                )
-                return stop_response
+                raise RuntimeError("LLM request cancelled")
             except asyncio.TimeoutError:
-                logger.error(
-                    "LLM request timed out after 120s",
-                    extra={
-                        "event_type": "llm_timeout",
-                        "attempt": attempt,
-                        "timeout_seconds": 120,
-                    },
-                )
                 if attempt == max_retries:
-                    raise  # Just re-raise the original TimeoutError
+                    raise RuntimeError(
+                        f"LLM request timed out after 120s (attempt {attempt}/{max_retries})"
+                    )
                 continue
 
             # Extract and validate the response
@@ -174,33 +164,11 @@ async def run(
             return {"status": "success", "data": json_block, "output_file": output_file}
 
         except json.JSONDecodeError as e:
-            logger.error(
-                f"JSON parsing error on attempt {attempt}",
-                extra={
-                    "event_type": "json_error",
-                    "error_details": str(e),
-                    "attempt": attempt,
-                },
-            )
-        except ValidationError as e:
-            logger.error(
-                f"Validation error on attempt {attempt}",
-                extra={
-                    "event_type": "validation_error",
-                    "error_details": str(e),
-                    "attempt": attempt,
-                },
-            )
+            raise RuntimeError(f"JSON parsing error on attempt {attempt}: {str(e)}")
         except Exception as e:
-            logger.exception(
-                f"Error during LLM processing on attempt {attempt}: {type(e).__name__}",
-                extra={
-                    "event_type": "llm_process_error",
-                    "error_type": type(e).__name__,
-                    "attempt": attempt,
-                },
+            raise RuntimeError(
+                f"Error during LLM processing on attempt {attempt}: {type(e).__name__}"
             )
-            raise  # Re-raise the original exception without wrapping in RuntimeError
 
         if attempt < max_retries:
             logger.warning(
