@@ -1,23 +1,21 @@
+import contextvars
 import functools
 import inspect
 import json
 import logging
-import time
-import traceback
-import contextvars
 import sys
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional
 
 # Pydantic import
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 # Rich imports
+from rich.json import JSON
 from rich.logging import RichHandler
 from rich.traceback import install as install_rich_traceback
-from rich.json import JSON
-from rich.pretty import pretty_repr
 
 # Rich 콘솔 및 트레이스백 핸들러 초기화
 # show_locals=False: 로컬 변수 표시 안 함 (보안 및 가독성)
@@ -153,7 +151,7 @@ class JsonFormatter(logging.Formatter):
             s = ct.strftime(datefmt)
         else:
             # UTC 시간 사용 권장
-            utc_ct = datetime.utcfromtimestamp(record.created)
+            utc_ct = datetime.fromtimestamp(record.created, tz=timezone.utc)
             t = utc_ct.strftime(self.default_time_format)
             s = self.default_msec_format % (t, record.msecs)
         return s
