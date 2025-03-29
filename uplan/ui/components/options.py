@@ -162,7 +162,6 @@ def create_options() -> None:
 
                     except Exception as e:
                         ui.notify(f"Error: {str(e)}", type="negative")
-                        print(f"Error processing {operation_type}: {str(e)}")
                     finally:
                         loading_indicator.classes("hidden")
 

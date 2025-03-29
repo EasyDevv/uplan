@@ -94,9 +94,23 @@ async def run(
 
             # Check if cancelled before starting
             if controller.stop_requested:
+                logger.info(
+                    "Processing cancelled before LLM request",
+                    extra={"event_type": "processing_cancelled"},
+                )
                 return stop_response
 
             # Create task and wrap with controller
+            logger.debug(
+                f"Sending request to LLM (attempt {attempt}/{max_retries})",
+                extra={
+                    "event_type": "llm_request",
+                    "attempt": attempt,
+                    "model": model,
+                    "stream": stream,
+                },
+            )
+
             response_llm = litellm.acompletion(
                 model=model,
                 messages=[{"content": optimized_prompt, "role": "user"}],
@@ -115,27 +129,94 @@ async def run(
                         return stop_response
                 else:
                     text = response.choices[0].message.content
-            except asyncio.CancelledError:
-                return stop_response
 
+            except asyncio.CancelledError:
+                logger.info(
+                    "LLM request cancelled",
+                    extra={"event_type": "llm_request_cancelled", "attempt": attempt},
+                )
+                return stop_response
+            except asyncio.TimeoutError:
+                logger.error(
+                    "LLM request timed out after 120s",
+                    extra={
+                        "event_type": "llm_timeout",
+                        "attempt": attempt,
+                        "timeout_seconds": 120,
+                    },
+                )
+                if attempt == max_retries:
+                    raise  # Just re-raise the original TimeoutError
+                continue
+
+            # Extract and validate the response
             dict_block = extract_code_block(text)
             json_block = json.loads(dict_block)
 
             if validate_model:
                 validate_model.model_validate(json_block)
 
+            # Save the response
             Path(output_file).parent.mkdir(parents=True, exist_ok=True)
             with open(output_file, "wb") as f:
                 tomli_w.dump(json_block, f)
 
+            logger.info(
+                f"Successfully processed {prompt_title}",
+                extra={
+                    "event_type": "llm_success",
+                    "output_file": output_file,
+                    "attempt": attempt,
+                    "response_size": len(json.dumps(json_block)),
+                },
+            )
+
             return {"status": "success", "data": json_block, "output_file": output_file}
 
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"JSON parsing error on attempt {attempt}",
+                extra={
+                    "event_type": "json_error",
+                    "error_details": str(e),
+                    "attempt": attempt,
+                },
+            )
+        except ValidationError as e:
+            logger.error(
+                f"Validation error on attempt {attempt}",
+                extra={
+                    "event_type": "validation_error",
+                    "error_details": str(e),
+                    "attempt": attempt,
+                },
+            )
         except Exception as e:
-            raise
+            logger.exception(
+                f"Error during LLM processing on attempt {attempt}: {type(e).__name__}",
+                extra={
+                    "event_type": "llm_process_error",
+                    "error_type": type(e).__name__,
+                    "attempt": attempt,
+                },
+            )
+            raise  # Re-raise the original exception without wrapping in RuntimeError
 
         if attempt < max_retries:
+            logger.warning(
+                f"Retrying LLM request (attempt {attempt}/{max_retries})",
+                extra={
+                    "event_type": "llm_retry",
+                    "attempt": attempt,
+                    "max_retries": max_retries,
+                },
+            )
             display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
 
+    logger.error(
+        f"Failed to process {prompt_title} after {max_retries} attempts",
+        extra={"event_type": "llm_max_retries", "max_retries": max_retries},
+    )
     display_text_panel(text=f"Failed to process response after {max_retries} attempts.")
     raise Exception("Max retries exceeded")
 
@@ -256,19 +337,46 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
         dict: Merged todo dictionary with plan data
 
     Raises:
-        RuntimeError: If required TOML files are not found
+        FileNotFoundError: If required TOML files are not found
     """
+    todo_file = input_folder / "todo.toml"
+    plan_file = output_folder / "plan.toml"
+
+    logger.debug(
+        "Preparing todo data by merging files",
+        extra={
+            "event_type": "prepare_todo",
+            "todo_file": str(todo_file),
+            "plan_file": str(plan_file),
+        },
+    )
+
     try:
-        with open(input_folder / "todo.toml", "rb") as f:
+        with open(todo_file, "rb") as f:
             todo = tomllib.load(f)
-        with open(output_folder / "plan.toml", "rb") as f:
+        with open(plan_file, "rb") as f:
             plan = tomllib.load(f)
-    except FileNotFoundError:
-        raise RuntimeError(f"Failed to read required TOML files in {input_folder}")
+
+        logger.debug(
+            "Successfully loaded todo and plan files",
+            extra={
+                "event_type": "todo_plan_loaded",
+                "todo_keys": list(todo.keys()),
+                "plan_keys": list(plan.keys()),
+            },
+        )
+    except FileNotFoundError as e:
+        logger.error(
+            f"Failed to read required TOML files",
+            extra={
+                "event_type": "todo_prepare_error",
+                "error_type": "FileNotFoundError",
+                "missing_file": str(e).split(":")[-1].strip(),
+            },
+        )
 
     todo.update({"plan": plan})
     return todo
-
 
 
 @trace
@@ -277,14 +385,26 @@ def prepare_answers(input_folder: Path) -> dict:
     try:
         with open(plan_file, "rb") as f:
             answers_data = tomllib.load(f)
-        logger.debug(f"Successfully loaded plan from {plan_file}")
+        logger.debug(
+            f"Successfully loaded plan from {plan_file}",
+            extra={"plan_file": str(plan_file), "event_type": "plan_loaded"},
+        )
         return answers_data
     except FileNotFoundError as e:
-        raise RuntimeError(f"Required configuration file not found: {plan_file}") from e
+        logger.error(
+            f"Required configuration file not found: {plan_file}",
+            extra={"error_type": "FileNotFoundError", "file_path": str(plan_file)},
+        )
     except tomllib.TOMLDecodeError as e:
-        raise RuntimeError(f"Invalid TOML format in file: {plan_file}") from e
+        logger.error(
+            f"Invalid TOML format in file: {plan_file}",
+            extra={"error_type": "TOMLDecodeError", "file_path": str(plan_file)},
+        )
     except Exception as e:
-        raise # 원래 예외를 그대로 전파
+        logger.exception(
+            f"Unexpected error loading plan file: {type(e).__name__}",
+            extra={"error_type": type(e).__name__, "plan_file": str(plan_file)},
+        )
 
 
 @trace
