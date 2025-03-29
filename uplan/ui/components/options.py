@@ -1,20 +1,16 @@
 """Options panel component for the right sidebar."""
 
 import inspect
-from pathlib import Path
 from nicegui import ui, app
 
-from uplan.utils.provider import check_model_support
-from uplan.ui.services.llm import LLMService
 from uplan.ui.services.planner import PlannerService
-from uplan.utils.logging import get_logger, log_async_function, trace_function
+from uplan.utils.logging import get_logger, trace
 
-logger = get_logger()
-from uplan.ui.services.stream_service import StreamService
 from uplan.ui.state import AppState
 
+logger = get_logger()
 
-@trace_function
+
 def create_option_card(title: str, value: str, placeholder: str) -> ui.input:
     """Create a card for a configuration option.
 
@@ -32,7 +28,6 @@ def create_option_card(title: str, value: str, placeholder: str) -> ui.input:
         return input_element
 
 
-@trace_function
 def create_options() -> None:
     """Create the options panel in the right sidebar."""
     # Initialize application state
@@ -81,7 +76,6 @@ def create_options() -> None:
                 # Loading indicator
                 loading_indicator = ui.spinner("dots").classes("hidden")
 
-                @log_async_function
                 async def connect_to_stream(stream_id: str, operation_type: str):
                     """Connect to a stream by ID and display results.
 
@@ -106,12 +100,8 @@ def create_options() -> None:
                                 "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow"
                             )
                             # Log connection attempt to help with debugging
-                            print(
-                                f"Connecting to stream: {stream_id} for {operation_type}"
-                            )
                             await stream_service.bind_to_ui_element(stream_id, content)
 
-                @log_async_function
                 async def process_operation(
                     operation_type: str, display_name: str
                 ) -> None:
@@ -142,17 +132,15 @@ def create_options() -> None:
                         state.max_retries = retry_input.value
                         state.operation_type = operation_type
 
-                        # Log request details for debugging
-                        print(
-                            f"Processing {operation_type} request with model: {state.model}"
-                        )
-
                         # Process request with streaming
                         # Pass the operation type through state instead of as a parameter
                         stream_id = await llm_service.process_request()
 
                         if stream_id:
-                            print(f"Stream ID received: {stream_id}")
+                            logger.info(
+                                f"Stream ID received: {stream_id}",
+                                extra={"function": func_name},
+                            )
                             await connect_to_stream(stream_id, display_name)
                         else:
                             ui.notify(
@@ -162,11 +150,9 @@ def create_options() -> None:
 
                     except Exception as e:
                         ui.notify(f"Error: {str(e)}", type="negative")
-                        print(f"Error processing {operation_type}: {str(e)}")
                     finally:
                         loading_indicator.classes("hidden")
 
-                @log_async_function
                 async def on_plan_click() -> None:
                     """Handle plan button click."""
                     func_name = inspect.currentframe().f_code.co_name
@@ -175,7 +161,6 @@ def create_options() -> None:
                     )
                     await process_operation("plan", "Plan")
 
-                @log_async_function
                 async def on_todo_click() -> None:
                     """Handle todo button click."""
                     func_name = inspect.currentframe().f_code.co_name
@@ -184,7 +169,6 @@ def create_options() -> None:
                     )
                     await process_operation("todo", "Todo List")
 
-                @log_async_function
                 async def on_all_click() -> None:
                     """Handle all (plan + todo) button click."""
                     func_name = inspect.currentframe().f_code.co_name
@@ -194,7 +178,6 @@ def create_options() -> None:
                     )
                     await process_operation("all", "Plan & Todo")
 
-                @trace_function
                 def on_stop_click() -> None:
                     """Handle stop button click."""
                     state = AppState.get_instance()

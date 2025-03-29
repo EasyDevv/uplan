@@ -9,7 +9,7 @@ from typing_extensions import Any
 
 from uplan.ui.state import AppState
 from uplan.ui.services.stream_service import StreamService
-from uplan.utils.logging import get_logger, log_async_function, trace_function
+from uplan.utils.logging import get_logger, trace
 
 # Initialize logger
 logger = get_logger()
@@ -28,7 +28,6 @@ class ContentManager:
         self._active_title = None
         self._is_streaming = False
 
-    @trace_function
     def _hash_content(self, text: str) -> str:
         """Create a hash of the content.
 
@@ -40,7 +39,6 @@ class ContentManager:
         """
         return hashlib.md5(text.encode("utf-8")).hexdigest()
 
-    @log_async_function
     async def _stop_streaming(self) -> None:
         """Handle cleanup and visual updates when streaming is stopped."""
         if self._active_title and self._active_card:
@@ -54,7 +52,6 @@ class ContentManager:
         self._active_title = None
         self._is_streaming = False
 
-    @trace_function
     def _create_new_card(self, container: ui.element, text: str) -> None:
         """Create a new content card.
 
@@ -74,7 +71,6 @@ class ContentManager:
                 self._active_content = content
                 self._active_title = title
 
-    @log_async_function
     async def update(
         self, container: ui.element, text: str, is_complete: bool = False
     ) -> None:
@@ -117,7 +113,6 @@ class ContentManager:
                 self._active_content = None
 
 
-@log_async_function
 async def handle_stream_update(
     container: ui.element, text: str, is_complete: bool = False
 ) -> None:
@@ -153,7 +148,6 @@ async def handle_stream_update(
         await ui.page._content_manager.update(container, text, is_complete)
 
 
-@trace_function
 def create_content(stream_service: StreamService) -> None:
     """Create the main content area for displaying generated content."""
     with ui.element("div").classes(
@@ -177,7 +171,6 @@ def create_content(stream_service: StreamService) -> None:
             }
         )
 
-        @log_async_function
         async def on_stream_created(stream_id: str) -> None:
             """Handle stream creation event."""
             func_name = inspect.currentframe().f_code.co_name
