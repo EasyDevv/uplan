@@ -79,100 +79,6 @@ def pydantic_encoder(obj: Any) -> Any:
         return f"<unserializable type: {type(obj).__name__}>"
 
 
-# --- JSON 포매터 ---
-class JSONFormatter(logging.Formatter):
-    """로그 레코드를 JSON 형식으로 포맷합니다 (Pydantic 지원)."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        """로그 레코드를 JSON 문자열로 변환합니다."""
-        log_data: Dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
-            "level": record.levelname,
-            "message": record.getMessage(),
-            "logger_name": record.name,
-            "module": record.module,
-            "function": record.funcName,  # 로깅 호출 지점
-            "line": record.lineno,
-            "thread_name": record.threadName,
-            "process_name": record.processName,
-        }
-
-        # 'extra' 딕셔너리 처리
-        extra_data = {}
-        log_context_handled = False
-
-        # 표준 로깅 record 속성 목록 (extra와 구별하기 위함)
-        standard_attrs = {
-            "args",
-            "asctime",
-            "created",
-            "exc_info",
-            "exc_text",
-            "filename",
-            "funcName",
-            "levelname",
-            "levelno",
-            "lineno",
-            "module",
-            "msecs",
-            "message",
-            "msg",
-            "name",
-            "pathname",
-            "process",
-            "processName",
-            "relativeCreated",
-            "stack_info",
-            "thread",
-            "threadName",
-            "taskName",  # Python 3.12+
-        }
-
-        for key, value in record.__dict__.items():
-            if key not in standard_attrs and not key.startswith("_"):
-                # 데코레이터에서 추가한 log_context 처리
-                if key == "log_context" and isinstance(value, LogContext):
-                    # Pydantic 모델의 내용을 log_data의 최상위 레벨에 병합
-                    log_data.update(value.model_dump(exclude_none=True))
-                    # log_context의 함수 이름을 우선 사용
-                    log_data["function"] = value.function_name
-                    log_context_handled = True
-                else:
-                    # 그 외의 extra 데이터는 'extra' 필드 아래에 저장
-                    extra_data[key] = value
-
-        if extra_data:
-            log_data["extra"] = extra_data
-
-        # 예외 정보 추가
-        if record.exc_info:
-            exc_type, exc_value, exc_traceback_obj = record.exc_info
-            log_data["exception"] = {
-                "type": exc_type.__name__,
-                "message": str(exc_value),
-                "traceback": traceback.format_exception(
-                    exc_type, exc_value, exc_traceback_obj
-                ),
-            }
-        elif record.exc_text:
-            log_data["exception_text"] = (
-                record.exc_text
-            )  # 예외 정보가 텍스트로만 제공될 경우
-
-        try:
-            # pydantic_encoder를 사용하여 Pydantic 모델 등 직렬화
-            return json.dumps(log_data, ensure_ascii=False, default=pydantic_encoder)
-        except Exception as e:
-            # 직렬화 실패 시 안전하게 처리
-            error_log = {
-                "logging_error": f"Failed to serialize log record: {e}",
-                "original_message": record.getMessage(),
-                "logger_name": record.name,
-                "level": record.levelname,
-            }
-            return json.dumps(error_log)
-
-
 # --- 로깅 설정 ---
 def setup_logging() -> logging.Logger:
     """콘솔 및 파일 핸들러로 로깅을 설정합니다."""
@@ -186,20 +92,13 @@ def setup_logging() -> logging.Logger:
     console_handler = RichHandler(
         rich_tracebacks=True,
         markup=True,
-        show_path=False,
-        log_time_format="[%Y-%m-%d %H:%M:%S]",
+        show_path=True,
+        show_level=True,
+        show_time=True,
         level=CONSOLE_LOG_LEVEL,
     )
+
     logger.addHandler(console_handler)
-
-    # JSON 파일 핸들러
-    log_file = LOG_DIR / f"uplan_{datetime.now().strftime('%Y%m%d')}.log"
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_handler.setLevel(FILE_LOG_LEVEL)
-    file_handler.setFormatter(JSONFormatter())  # Pydantic 지원 포매터 사용
-    logger.addHandler(file_handler)
-
-    # logger.propagate = False # 필요 시 루트 로거 전파 중단
 
     return logger
 

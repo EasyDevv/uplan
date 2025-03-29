@@ -20,8 +20,7 @@ from uplan.utils.display import (
 )
 from uplan.utils.logging import (
     get_logger,
-    log_async_function,
-    trace_function,
+    trace,
 )
 from uplan.utils.stream import StreamController
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
@@ -30,7 +29,7 @@ from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_promp
 logger = get_logger()
 
 
-@log_async_function
+@trace
 async def run(
     prompt_title: str,
     extracted_title: str,
@@ -141,7 +140,7 @@ async def run(
     raise Exception("Max retries exceeded")
 
 
-@log_async_function
+@trace
 async def get_plan(
     output_folder: Path,
     model: str,
@@ -191,7 +190,7 @@ async def get_plan(
         return {"status": "error", "message": str(e)}
 
 
-@log_async_function
+@trace
 async def get_todo(
     output_folder: Path,
     model: str,
@@ -244,7 +243,7 @@ async def get_todo(
         return {"status": "error", "message": str(e)}
 
 
-@trace_function
+@trace
 def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     """
     Read and merge todo and plan TOML files.
@@ -271,45 +270,24 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     return todo
 
 
-@trace_function
+
+@trace
 def prepare_answers(input_folder: Path) -> dict:
-    """
-    Read and validate the plan form from input folder.
-
-    Creates a default plan if the file doesn't exist.
-
-    Args:
-        input_folder: Path to the input folder containing plan.toml
-
-    Returns:
-        dict: The answers data dictionary
-    """
     plan_file = input_folder / "plan.toml"
-
-    # if not plan_file.exists():
-    #     logger.warning(
-    #         f"plan.toml not found in {input_folder}, using default template",
-    #         extra={"input_path": str(input_folder)},
-    #     )
-    #     # Return a minimal default plan structure
-    #     return {
-    #         "project": {
-    #             "name": "New Project",
-    #             "description": "Default project template",
-    #         },
-    #         "settings": {"language": "python", "framework": "none"},
-    #     }
-
     try:
         with open(plan_file, "rb") as f:
             answers_data = tomllib.load(f)
+        logger.debug(f"Successfully loaded plan from {plan_file}")
         return answers_data
+    except FileNotFoundError as e:
+        raise RuntimeError(f"Required configuration file not found: {plan_file}") from e
+    except tomllib.TOMLDecodeError as e:
+        raise RuntimeError(f"Invalid TOML format in file: {plan_file}") from e
     except Exception as e:
-        raise logger.error(f"Error reading plan.toml: {str(e)}")
-        # raise
+        raise # 원래 예외를 그대로 전파
 
 
-@log_async_function
+@trace
 async def get_all(
     input_folder: Path,
     output_folder: Path,
