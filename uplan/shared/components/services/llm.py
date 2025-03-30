@@ -44,6 +44,8 @@ class LLMService:
         stream_id = f"llm_stream_{self._request_id}"
         stream = self.stream_service.create_stream(stream_id)
 
+        print(f"process_request: stream_id={stream_id}")
+
         async def stream_handler(text: str) -> None:
             await stream.push(text)
 
