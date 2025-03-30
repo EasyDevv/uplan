@@ -50,9 +50,12 @@ def create_options() -> None:
         # Create a scrollable container for options
         with ui.element("div").classes("scroll-container"):
             with ui.element("div").classes("mb-20"):
-                # Model selection
+                # Model selection - separate provider and model
+                provider_input = create_option_card(
+                    "Provider", "ollama", "Enter model provider"
+                )
                 model_input = create_option_card(
-                    "Model", "ollama/gemma3:1b", "Enter model name"
+                    "Model", "gemma3:1b", "Enter model name"
                 )
 
                 # Category selection
@@ -113,7 +116,7 @@ def create_options() -> None:
                     """
                     func_name = inspect.currentframe().f_code.co_name
                     logger.info(
-                        f"Processing operation",
+                        "Processing operation",
                         extra={
                             "function": func_name,
                             "operation_type": operation_type,
@@ -125,6 +128,7 @@ def create_options() -> None:
                         state.reset_processing()
 
                         # Update state with form values
+                        state.provider = provider_input.value
                         state.model = model_input.value
                         state.category = category_input.value
                         state.input_path = input_folder.value
@@ -157,7 +161,7 @@ def create_options() -> None:
                     """Handle plan button click."""
                     func_name = inspect.currentframe().f_code.co_name
                     logger.info(
-                        f"Starting plan generation", extra={"function": func_name}
+                        "Starting plan generation", extra={"function": func_name}
                     )
                     await process_operation("plan", "Plan")
 
@@ -165,7 +169,7 @@ def create_options() -> None:
                     """Handle todo button click."""
                     func_name = inspect.currentframe().f_code.co_name
                     logger.info(
-                        f"Starting todo generation", extra={"function": func_name}
+                        "Starting todo generation", extra={"function": func_name}
                     )
                     await process_operation("todo", "Todo List")
 
@@ -173,7 +177,7 @@ def create_options() -> None:
                     """Handle all (plan + todo) button click."""
                     func_name = inspect.currentframe().f_code.co_name
                     logger.info(
-                        f"Starting combined plan & todo generation",
+                        "Starting combined plan & todo generation",
                         extra={"function": func_name},
                     )
                     await process_operation("all", "Plan & Todo")
