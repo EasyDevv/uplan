@@ -16,7 +16,7 @@ from uplan.ui.state import AppState
 from uplan.utils.provider import check_model_support, setup_env
 
 
-class UPlanApp:
+class App:
     """Central application class with GUI as primary and CLI as secondary mode."""
 
     def __init__(self):
@@ -81,6 +81,22 @@ class UPlanApp:
         cli()
 
 
-def create_app() -> UPlanApp:
-    """Create and return the application instance."""
-    return UPlanApp()
+def init_gui() -> None:
+    """Initialize the GUI interface.
+
+    Sets up the UI components using centralized application instance.
+    """
+    # Create application instance
+    app = App()
+
+    # Run GUI with default configuration
+    app.run_gui()
+
+
+def main():
+    """Main entry point for the GUI application."""
+    init_gui()
+
+
+if __name__ in {"__main__", "__mp_main__"}:
+    main()
