@@ -11,19 +11,19 @@ import litellm
 import tomli_w
 import tomllib
 
-from uplan.models.todo import TodoModel
-from uplan.ui.state import AppState
-from uplan.utils.data import add_completed_status, toml_to_markdown
-from uplan.utils.display import (
+from uplan.shared.models.todo import TodoModel
+from uplan.shared.components.state import AppState
+from uplan.shared.utils.data import add_completed_status, toml_to_markdown
+from uplan.shared.utils.display import (
     display_json_panel,
     display_text_panel,
 )
-from uplan.utils.logging import (
+from uplan.shared.utils.logging import (
     get_logger,
     trace,
 )
-from uplan.utils.stream import StreamController
-from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
+from uplan.shared.utils.stream import StreamController
+from uplan.shared.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
 
 # Initialize logger
 logger = get_logger()

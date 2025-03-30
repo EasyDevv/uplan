@@ -8,12 +8,12 @@ from typing import Any, Dict
 
 from nicegui import app as nicegui_app, ui
 
-from uplan.ui.layouts.main import create_main_layout
-from uplan.ui.services.llm import LLMService
-from uplan.ui.services.state_service import StateService
-from uplan.ui.services.stream_service import StreamService
-from uplan.ui.state import AppState
-from uplan.utils.provider import check_model_support, setup_env
+from uplan.shared.components.layouts.main import create_main_layout
+from uplan.shared.components.services.llm import LLMService
+from uplan.shared.components.services.state_service import StateService
+from uplan.shared.components.services.stream_service import StreamService
+from uplan.shared.components.state import AppState
+from uplan.shared.utils.provider import check_model_support, setup_env
 
 
 class UPlanApp:
