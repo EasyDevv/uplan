@@ -5,8 +5,8 @@ from pathlib import Path
 from rich import print
 
 from uplan.app import create_app
-from uplan.init import initialize
-from uplan.process import get_all, get_plan, get_todo
+from uplan.features.forms.initializer import initialize
+from uplan.features.llm.processor import get_all, get_plan, get_todo
 
 # Create app instance
 app = create_app()

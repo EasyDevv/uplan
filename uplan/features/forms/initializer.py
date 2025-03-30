@@ -1,7 +1,7 @@
 from pathlib import Path
 import shutil
 
-from uplan.models.todo import TodoModel
+from uplan.shared.models.todo import TodoModel
 
 # Configuration paths
 DEFAULT_CONFIG_DIR = Path.cwd() / "input"

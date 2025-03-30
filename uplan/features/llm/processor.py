@@ -2,34 +2,57 @@
 Module for processing and generating development plans and to-do lists using LLMs.
 """
 
-import asyncio
 import json
+import inspect
 from pathlib import Path
-from typing import Any, AsyncIterator, Awaitable, Callable, Optional, Tuple
+from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple, Awaitable
 
 import litellm
+from regex import E
 import tomli_w
 import tomllib
+from rich import print
+import asyncio
 
+<<<<<<< HEAD:uplan/features/llm/processor.py
+from uplan.shared.models.todo import TodoModel
+from uplan.shared.components.state import AppState
+from uplan.shared.utils.data import add_completed_status, toml_to_markdown
+from uplan.shared.utils.display import (
+=======
 from uplan.models.todo import TodoModel
-from uplan.ui.state import AppState
+from uplan.question import collect_answers_cli, select_option
 from uplan.utils.data import add_completed_status, toml_to_markdown
 from uplan.utils.display import (
+>>>>>>> parent of e51d43f (Refactor run function to improve error handling and remove commented-out code; streamline plan file processing logic):uplan/process.py
     display_json_panel,
+    display_streaming,
     display_text_panel,
 )
-from uplan.utils.logging import (
-    get_logger,
-    trace,
-)
-from uplan.utils.stream import StreamController
+<<<<<<< HEAD:uplan/features/llm/processor.py
+from uplan.shared.utils.logging import (
+=======
+from uplan.utils.file import open_file
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
+from uplan.utils.stream import StreamController
+from uplan.utils.logging import (
+>>>>>>> parent of e51d43f (Refactor run function to improve error handling and remove commented-out code; streamline plan file processing logic):uplan/process.py
+    get_logger,
+    log_async_function,
+    trace_function,
+)
+<<<<<<< HEAD:uplan/features/llm/processor.py
+from uplan.shared.utils.stream import StreamController
+from uplan.shared.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
+=======
+from uplan.ui.state import AppState
+>>>>>>> parent of e51d43f (Refactor run function to improve error handling and remove commented-out code; streamline plan file processing logic):uplan/process.py
 
 # Initialize logger
 logger = get_logger()
 
 
-@trace
+@log_async_function
 async def run(
     prompt_title: str,
     extracted_title: str,
@@ -94,23 +117,9 @@ async def run(
 
             # Check if cancelled before starting
             if controller.stop_requested:
-                logger.info(
-                    "Processing cancelled before LLM request",
-                    extra={"event_type": "processing_cancelled"},
-                )
                 return stop_response
 
             # Create task and wrap with controller
-            logger.debug(
-                f"Sending request to LLM (attempt {attempt}/{max_retries})",
-                extra={
-                    "event_type": "llm_request",
-                    "attempt": attempt,
-                    "model": model,
-                    "stream": stream,
-                },
-            )
-
             response_llm = litellm.acompletion(
                 model=model,
                 messages=[{"content": optimized_prompt, "role": "user"}],
@@ -129,67 +138,45 @@ async def run(
                         return stop_response
                 else:
                     text = response.choices[0].message.content
-
             except asyncio.CancelledError:
-                raise RuntimeError("LLM request cancelled")
-            except asyncio.TimeoutError:
-                if attempt == max_retries:
-                    raise RuntimeError(
-                        f"LLM request timed out after 120s (attempt {attempt}/{max_retries})"
-                    )
-                continue
+                return stop_response
 
-            # Extract and validate the response
             dict_block = extract_code_block(text)
             json_block = json.loads(dict_block)
 
             if validate_model:
                 validate_model.model_validate(json_block)
 
-            # Save the response
             Path(output_file).parent.mkdir(parents=True, exist_ok=True)
             with open(output_file, "wb") as f:
                 tomli_w.dump(json_block, f)
 
-            logger.info(
-                f"Successfully processed {prompt_title}",
-                extra={
-                    "event_type": "llm_success",
-                    "output_file": output_file,
-                    "attempt": attempt,
-                    "response_size": len(json.dumps(json_block)),
-                },
-            )
-
             return {"status": "success", "data": json_block, "output_file": output_file}
 
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"JSON parsing error on attempt {attempt}: {str(e)}")
+        except asyncio.TimeoutError:
+            display_text_panel(text=f"Request timed out after 120 seconds")
+            return logger.error("Request timeout", extra={"timeout": 120})
+        except asyncio.CancelledError:
+            logger.info("Request cancelled by user")
+            return {"status": "stopped", "message": "Processing stopped by user"}
+        except json.JSONDecodeError as je:
+            display_text_panel(text=f"Invalid JSON format: {je}")
+            return logger.error("JSON decode error", extra={"error": str(je)})
         except Exception as e:
-            raise RuntimeError(
-                f"Error during LLM processing on attempt {attempt}: {type(e).__name__}"
-            )
+            raise
+
+        # Check if we need to exit the retry loop completely due to stop request
+        if controller.stop_requested:
+            return {"status": "stopped", "message": "Processing stopped by user"}
 
         if attempt < max_retries:
-            logger.warning(
-                f"Retrying LLM request (attempt {attempt}/{max_retries})",
-                extra={
-                    "event_type": "llm_retry",
-                    "attempt": attempt,
-                    "max_retries": max_retries,
-                },
-            )
             display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
 
-    logger.error(
-        f"Failed to process {prompt_title} after {max_retries} attempts",
-        extra={"event_type": "llm_max_retries", "max_retries": max_retries},
-    )
     display_text_panel(text=f"Failed to process response after {max_retries} attempts.")
     raise Exception("Max retries exceeded")
 
 
-@trace
+@log_async_function
 async def get_plan(
     output_folder: Path,
     model: str,
@@ -239,7 +226,7 @@ async def get_plan(
         return {"status": "error", "message": str(e)}
 
 
-@trace
+@log_async_function
 async def get_todo(
     output_folder: Path,
     model: str,
@@ -292,7 +279,7 @@ async def get_todo(
         return {"status": "error", "message": str(e)}
 
 
-@trace
+@trace_function
 def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     """
     Read and merge todo and plan TOML files.
@@ -305,77 +292,59 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
         dict: Merged todo dictionary with plan data
 
     Raises:
-        FileNotFoundError: If required TOML files are not found
+        RuntimeError: If required TOML files are not found
     """
-    todo_file = input_folder / "todo.toml"
-    plan_file = output_folder / "plan.toml"
-
-    logger.debug(
-        "Preparing todo data by merging files",
-        extra={
-            "event_type": "prepare_todo",
-            "todo_file": str(todo_file),
-            "plan_file": str(plan_file),
-        },
-    )
-
     try:
-        with open(todo_file, "rb") as f:
+        with open(input_folder / "todo.toml", "rb") as f:
             todo = tomllib.load(f)
-        with open(plan_file, "rb") as f:
+        with open(output_folder / "plan.toml", "rb") as f:
             plan = tomllib.load(f)
-
-        logger.debug(
-            "Successfully loaded todo and plan files",
-            extra={
-                "event_type": "todo_plan_loaded",
-                "todo_keys": list(todo.keys()),
-                "plan_keys": list(plan.keys()),
-            },
-        )
-    except FileNotFoundError as e:
-        logger.error(
-            f"Failed to read required TOML files",
-            extra={
-                "event_type": "todo_prepare_error",
-                "error_type": "FileNotFoundError",
-                "missing_file": str(e).split(":")[-1].strip(),
-            },
-        )
+    except FileNotFoundError:
+        raise RuntimeError(f"Failed to read required TOML files in {input_folder}")
 
     todo.update({"plan": plan})
     return todo
 
 
-@trace
+@trace_function
 def prepare_answers(input_folder: Path) -> dict:
+    """
+    Read and validate the plan form from input folder.
+
+    Creates a default plan if the file doesn't exist.
+
+    Args:
+        input_folder: Path to the input folder containing plan.toml
+
+    Returns:
+        dict: The answers data dictionary
+    """
     plan_file = input_folder / "plan.toml"
+
+    if not plan_file.exists():
+        logger.warning(
+            f"plan.toml not found in {input_folder}, using default template",
+            extra={"input_path": str(input_folder)},
+        )
+        # Return a minimal default plan structure
+        return {
+            "project": {
+                "name": "New Project",
+                "description": "Default project template",
+            },
+            "settings": {"language": "python", "framework": "none"},
+        }
+
     try:
         with open(plan_file, "rb") as f:
             answers_data = tomllib.load(f)
-        logger.debug(
-            f"Successfully loaded plan from {plan_file}",
-            extra={"plan_file": str(plan_file), "event_type": "plan_loaded"},
-        )
         return answers_data
-    except FileNotFoundError as e:
-        logger.error(
-            f"Required configuration file not found: {plan_file}",
-            extra={"error_type": "FileNotFoundError", "file_path": str(plan_file)},
-        )
-    except tomllib.TOMLDecodeError as e:
-        logger.error(
-            f"Invalid TOML format in file: {plan_file}",
-            extra={"error_type": "TOMLDecodeError", "file_path": str(plan_file)},
-        )
     except Exception as e:
-        logger.exception(
-            f"Unexpected error loading plan file: {type(e).__name__}",
-            extra={"error_type": type(e).__name__, "plan_file": str(plan_file)},
-        )
+        logger.error(f"Error reading plan.toml: {str(e)}")
+        raise RuntimeError(f"Failed to process plan.toml in {input_folder}: {str(e)}")
 
 
-@trace
+@log_async_function
 async def get_all(
     input_folder: Path,
     output_folder: Path,
