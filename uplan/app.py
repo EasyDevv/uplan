@@ -76,27 +76,26 @@ class App:
 
     def run_cli(self) -> None:
         """Run the application in CLI mode (subsidiary mode)."""
-        from uplan.main import cli
+        # Import the CLI entry point from the new location
+        from uplan.cli.main import cli
 
+        # Execute the click group
         cli()
 
 
-def init_gui() -> None:
-    """Initialize the GUI interface.
-
-    Sets up the UI components using centralized application instance.
-    """
-    # Create application instance
-    app = App()
-
-    # Run GUI with default configuration
-    app.run_gui()
+def create_app() -> App:
+    """Factory function to create and return an App instance."""
+    return App()
 
 
-def main():
-    """Main entry point for the GUI application."""
-    init_gui()
+# Removed init_gui() and main() functions as they are primarily for direct GUI execution.
+# The main entry point is now handled by uplan/__main__.py which decides between GUI/CLI.
 
-
-if __name__ in {"__main__", "__mp_main__"}:
-    main()
+# Keep the __name__ == "__main__" block for potential direct testing/running of app.py if needed,
+# but the standard execution path is via uplan/__main__.py.
+# Consider if this block is still necessary or if tests cover this scenario.
+# if __name__ in {"__main__", "__mp_main__"}:
+#     # This block might be removed if direct execution of app.py is not intended.
+#     # For now, let's assume it might be used for GUI testing/dev.
+#     temp_app = create_app()
+#     temp_app.run_gui() # Default to GUI if run directly
