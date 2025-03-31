@@ -1,6 +1,5 @@
 """Stream service for managing LLM streaming operations."""
 
-import asyncio
 from typing import Callable, Dict, Optional
 from nicegui import ui
 

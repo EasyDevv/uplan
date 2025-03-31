@@ -4,7 +4,8 @@ Provides centralized state management and UI update functionality.
 """
 
 from typing import Any, Callable, Optional
-from nicegui import app, ui
+
+from nicegui import app
 
 from uplan.ui.state import AppState
 

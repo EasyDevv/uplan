@@ -5,7 +5,6 @@ import inspect
 from datetime import datetime
 from asyncio import Lock
 from nicegui import ui
-from typing_extensions import Any
 
 from uplan.ui.state import AppState
 from uplan.ui.services.stream_service import StreamService
@@ -179,7 +178,7 @@ def create_content(stream_service: StreamService) -> None:
                 extra={"function": func_name, "stream_id": stream_id},
             )
             with content_container:
-                card = ui.card().classes("w-full mb-4 h-auto")
+                # card = ui.card().classes("w-full mb-4 h-auto")
                 new_content = ui.markdown("").classes(
                     "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow"
                 )
