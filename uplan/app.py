@@ -88,8 +88,8 @@ def create_app() -> App:
     return App()
 
 
-if __name__ in {"__main__", "__mp_main__"}:
-    # This block might be removed if direct execution of app.py is not intended.
-    # For now, let's assume it might be used for GUI testing/dev.
-    temp_app = create_app()
-    temp_app.run_gui()  # Default to GUI if run directly
+# if __name__ in {"__main__", "__mp_main__"}:
+#     # This block might be removed if direct execution of app.py is not intended.
+#     # For now, let's assume it might be used for GUI testing/dev.
+#     temp_app = create_app()
+#     temp_app.run_gui()  # Default to GUI if run directly

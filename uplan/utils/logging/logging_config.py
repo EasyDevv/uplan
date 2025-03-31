@@ -1,0 +1,15 @@
+import logging
+from pathlib import Path
+
+# --- 설정 ---
+DEFAULT_LOG_LEVEL = logging.DEBUG  # 기본 트레이스 레벨을 DEBUG로 변경
+FILE_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+LOG_DIR = Path("logs")
+LOG_FILENAME_FORMAT = "app_{timestamp}.log"
+JSON_LOG_FILENAME_FORMAT = "app_structured_{timestamp}.log"
+CONSOLE_LOG_LEVEL = logging.DEBUG
+JSON_LOG_LEVEL = logging.DEBUG
+LOGGER_NAME = "tracer"
+
+LOG_DIR.mkdir(parents=True, exist_ok=True)
