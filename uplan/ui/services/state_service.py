@@ -8,8 +8,10 @@ from typing import Any, Callable, Optional
 from nicegui import app
 
 from uplan.ui.state import AppState
+from uplan.utils.logging import trace
 
 
+@trace
 class StateService:
     """Service for managing application state and UI updates."""
 
