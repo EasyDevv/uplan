@@ -46,7 +46,7 @@ async def run(
 ) -> dict:
     """Run LLM inference with streaming support."""
     logger.info(
-        f"Starting LLM inference",
+        "Starting LLM inference",
         extra={"model": model, "prompt_title": prompt_title},
     )
     display_json_panel(prompt, title=prompt_title, border_style="green")
@@ -335,7 +335,7 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
         )
     except FileNotFoundError as e:
         logger.error(
-            f"Failed to read required TOML files",
+            "Failed to read required TOML files",
             extra={
                 "event_type": "todo_prepare_error",
                 "error_type": "FileNotFoundError",
@@ -358,12 +358,12 @@ def prepare_answers(input_folder: Path) -> dict:
             extra={"plan_file": str(plan_file), "event_type": "plan_loaded"},
         )
         return answers_data
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         logger.error(
             f"Required configuration file not found: {plan_file}",
             extra={"error_type": "FileNotFoundError", "file_path": str(plan_file)},
         )
-    except tomllib.TOMLDecodeError as e:
+    except tomllib.TOMLDecodeError:
         logger.error(
             f"Invalid TOML format in file: {plan_file}",
             extra={"error_type": "TOMLDecodeError", "file_path": str(plan_file)},

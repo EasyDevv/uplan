@@ -88,14 +88,8 @@ def create_app() -> App:
     return App()
 
 
-# Removed init_gui() and main() functions as they are primarily for direct GUI execution.
-# The main entry point is now handled by uplan/__main__.py which decides between GUI/CLI.
-
-# Keep the __name__ == "__main__" block for potential direct testing/running of app.py if needed,
-# but the standard execution path is via uplan/__main__.py.
-# Consider if this block is still necessary or if tests cover this scenario.
-# if __name__ in {"__main__", "__mp_main__"}:
-#     # This block might be removed if direct execution of app.py is not intended.
-#     # For now, let's assume it might be used for GUI testing/dev.
-#     temp_app = create_app()
-#     temp_app.run_gui() # Default to GUI if run directly
+if __name__ in {"__main__", "__mp_main__"}:
+    # This block might be removed if direct execution of app.py is not intended.
+    # For now, let's assume it might be used for GUI testing/dev.
+    temp_app = create_app()
+    temp_app.run_gui()  # Default to GUI if run directly
