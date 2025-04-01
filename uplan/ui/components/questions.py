@@ -86,7 +86,7 @@ def create_questions() -> None:
         ui.page._storage["questions_store"] = store
 
         # Create a scrollable container for the form
-        with ui.element("div").classes("scroll-container"):
+        with ui.element("div").classes("vertical-scroll"):
             with ui.element("div").classes("mb-20"):
                 # Organize questions by section
                 sections = {}

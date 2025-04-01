@@ -3,6 +3,7 @@
 Provides centralized initialization with GUI as primary and CLI as secondary mode.
 """
 
+import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -69,7 +70,7 @@ class App:
         ui.run(
             title=options.get("title", "UPlan"),
             favicon=options.get("favicon", "✅"),
-            reload=options.get("reload", True),
+            reload=os.getenv("DEV", "false").lower() == "true",
             show=options.get("show", False),
             dark=options.get("dark", True),
         )
@@ -81,11 +82,6 @@ class App:
 
         # Execute the click group
         cli()
-
-
-def create_app() -> App:
-    """Factory function to create and return an App instance."""
-    return App()
 
 
 # if __name__ in {"__main__", "__mp_main__"}:

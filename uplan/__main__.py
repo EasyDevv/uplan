@@ -3,7 +3,7 @@
 import sys
 
 # Import the factory function to create the App instance
-from uplan.app import create_app
+from uplan.app import App
 
 
 def main():
@@ -13,7 +13,7 @@ def main():
     - No arguments: Runs GUI mode.
     - Any arguments: Runs CLI mode (delegating argument parsing to click).
     """
-    app = create_app()
+    app = App()
 
     # Check the number of command-line arguments
     if len(sys.argv) == 1:

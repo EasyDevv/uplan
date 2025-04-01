@@ -47,7 +47,7 @@ def apply_global_styles() -> None:
 
     # Apply content styles
     ui.query(".nicegui-content").style("padding: 0; overflow: hidden;")
-    ui.query(".scroll-container").style("overflow-y: auto; height: 100vh; width: 100%;")
+    ui.query(".vertical-scroll").classes("overflow-y-auto h-screen w-full")
 
     # Set default component styles
     ui.card.default_classes(
