@@ -9,6 +9,8 @@ from typing import Any, Dict
 
 from nicegui import app as nicegui_app, ui
 
+# uplan.init 모듈에서 initialize 함수 임포트
+from uplan.init import initialize
 from uplan.ui.layouts.main import create_main_layout
 from uplan.ui.services.llm import LLMService
 from uplan.ui.services.state_service import StateService
@@ -24,10 +26,22 @@ class App:
         """Initialize the UPlan application with GUI focus."""
         self.state = AppState.get_instance()
         self.services: Dict[str, Any] = {}
-        self._initialize_services()
-
-        # Setup environment by default
+        # Setup environment first
         setup_env()
+
+        # Initialize configuration (forms, models) before starting services or UI
+        # GUI 환경에서는 기본값으로 초기화 (force=False, form_dir='dev')
+        # TODO: GUI 설정에서 form_dir 등을 선택할 수 있도록 기능 추가 고려
+        # try:
+        #     initialize()  # 기본값 사용
+        # except Exception as e:
+        #     # 초기화 실패 시 로깅 또는 사용자 알림 처리 필요
+        #     # 여기서는 간단히 에러를 출력합니다. 실제 애플리케이션에서는 더 견고한 처리가 필요합니다.
+        #     print(f"[ERROR] Failed to initialize application: {e}")
+        #     # 초기화 실패 시 GUI 실행을 중단할 수도 있습니다.
+        #     # raise SystemExit("Initialization failed, cannot start GUI.") from e
+
+        self._initialize_services()
 
     def _initialize_services(self) -> None:
         """Initialize and register core services."""
