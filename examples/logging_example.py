@@ -10,9 +10,7 @@ from pydantic import BaseModel, Field
 
 # Refactored logging imports
 from uplan.utils.logging import get_logger, trace
-from uplan.utils.logging_config import (
-    LOG_DIR,
-)  # LOG_DIR is an internal detail, imported directly
+from uplan.utils.logging import LOG_DIR
 
 
 # --- 예제 사용 ---
@@ -126,7 +124,7 @@ async def main():
     try:
         process_data(invalid_data, user=current_user)
     except ValueError as e:
-        logger.warning(f"동기 함수에서 예상된 오류 처리 완료: {e}")
+        logger.warning(f"동기 함수에서 예상된 오류 ({type(e).__name__}) 처리 완료.")
     nested_sync_result = nested_sync_call(0)
     logger.info(f"중첩 동기 호출 결과: {nested_sync_result}")
 
@@ -140,7 +138,7 @@ async def main():
     try:
         await fetch_remote_config("https://error.example.com")
     except ConnectionError as e:
-        logger.warning(f"비동기 함수에서 예상된 오류 처리 완료: {e}")
+        logger.warning(f"비동기 함수에서 예상된 오류 ({type(e).__name__}) 처리 완료.")
     nested_async_result = await nested_async_call(0)
     logger.info(f"중첩 비동기 호출 결과: {nested_async_result}")
 
@@ -155,7 +153,9 @@ async def main():
     try:
         processor.process_item(3)
     except RuntimeError as e:
-        logger.warning(f"클래스 동기 메서드 예상된 오류 처리: {e}")
+        logger.warning(
+            f"클래스 동기 메서드에서 예상된 오류 ({type(e).__name__}) 처리 완료."
+        )
     try:
         class_async_result = await processor.process_item_async(5)
         logger.info(f"클래스 비동기 메서드 결과: {class_async_result}")
@@ -164,7 +164,9 @@ async def main():
     try:
         await processor.process_item_async(8)
     except asyncio.TimeoutError as e:
-        logger.warning(f"클래스 비동기 메서드 예상된 오류 처리: {e}")
+        logger.warning(
+            f"클래스 비동기 메서드에서 예상된 오류 ({type(e).__name__}) 처리 완료."
+        )
     processor._internal_helper()
 
     # --- 직접 로그 메시지 ---

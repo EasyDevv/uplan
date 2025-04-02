@@ -1,9 +1,14 @@
-"""Questions panel component for the left sidebar."""
+"""Questions panel component for the left sidebar, dynamically loaded based on category."""
 
 from pathlib import Path
-from nicegui import ui
+from typing import Dict, Any, Optional
+from nicegui import ui, app
 
+from uplan.config import INPUT_BASE_DIR  # Import config constant
 from uplan.utils.data import load_toml_file
+from uplan.utils.logging import get_logger, trace  # Added logger
+
+logger = get_logger()  # Initialize logger
 
 
 def create_question_card(field_name: str, field_data: dict, store: dict) -> None:
@@ -46,7 +51,7 @@ def create_question_card(field_name: str, field_data: dict, store: dict) -> None
 
 
 def create_section(section_name: str, section_data: dict, store: dict) -> None:
-    """Create an expansion panel for a form section.
+    """Create an expansion panel for a form section.56^
 
     Args:
         section_name: Name of the section
@@ -69,32 +74,134 @@ def create_section(section_name: str, section_data: dict, store: dict) -> None:
             )
 
 
-def create_questions() -> None:
-    """Create the questions panel in the left sidebar."""
-    with ui.element("div").classes("w-[30%] max-w-xs bg-base-200 p-4"):
-        ui.label("Questions").classes("text-xl font-bold p-1")
+# Define a container for the questions that can be refreshed
+questions_container = None
 
-        # Load form structure from TOML
-        form_data = load_toml_file(Path("uplan/forms/dev/plan.toml"))
 
-        # Initialize storage if needed
+@ui.refreshable
+def build_questions_ui(category: Optional[str] = "dev") -> None:
+    """Builds or rebuilds the questions UI based on the selected category."""
+    global questions_container
+    if questions_container is None:
+        logger.error("Questions container is not initialized.")
+        return
+
+    # Clear previous content explicitly
+    questions_container.clear()
+
+    with questions_container:  # Rebuild content within the container
+        # Load form structure from TOML based on category
+        if category is None:
+            logger.warning("No category provided, cannot load questions.")
+            ui.label("Please select a category first.").classes("text-warning")
+            return
+
+        # Construct path using INPUT_BASE_DIR config constant
+        form_path = INPUT_BASE_DIR / category / "plan.toml"
+        logger.info(f"Attempting to load questions from: {form_path}")
+
+        if not form_path.exists():
+            logger.error(f"Questions file not found: {form_path}")
+            ui.label(
+                f"Error: Questions file not found for category '{category}'."
+            ).classes("text-negative")
+            ui.label(f"Expected path: {form_path}").classes("text-xs text-gray-500")
+            return
+
+        form_data = load_toml_file(form_path)
+        if form_data is None:
+            # load_toml_file likely logged specifics, this log indicates the consequence.
+            logger.error(
+                f"Failed to load or parse TOML data from {form_path}. Check preceding logs for details."
+            )
+            ui.label(f"Error loading questions file for '{category}'.").classes(
+                "text-negative"
+            )
+            ui.label(f"Path: {form_path}").classes("text-xs text-gray-500")
+            return
+        elif "form" not in form_data:
+            logger.error(
+                f"Loaded data from {form_path}, but missing required 'form' key."
+            )
+            ui.label(
+                f"Error: Invalid structure in questions file for '{category}'."
+            ).classes("text-negative")
+            ui.label(f"File: {form_path}").classes("text-xs text-gray-500")
+            return
+
+        # Initialize storage if needed (might be redundant if already done elsewhere)
         if not hasattr(ui.page, "_storage"):
             ui.page._storage = {}
 
-        # Initialize store for form data
+        # Initialize store for form data for this category
+        # Ensure store is reset or managed correctly when category changes
         store = {"sections": {}, "form_data": {}}
-        ui.page._storage["questions_store"] = store
+        # Store under a category-specific key or reset it
+        ui.page._storage[f"questions_store_{category}"] = (
+            store  # Example: category-specific store
+        )
+        # Or potentially reset a general store: ui.page._storage["questions_store"] = store
 
         # Create a scrollable container for the form
         with ui.element("div").classes("vertical-scroll"):
-            with ui.element("div").classes("mb-20"):
-                # Organize questions by section
-                sections = {}
-                for key, value in form_data.get("form", {}).items():
-                    section_name = key
-                    if isinstance(value, dict):
-                        sections[section_name] = value
+            with ui.element("div").classes("mb-20 space-y-4"):
+                # Iterate over the sections found under the 'form' key
+                form_sections = form_data.get("form", {})  # Use 'form' key
 
-                # Create expansion panels for each section
-                for section_name, section_data in sections.items():
-                    create_section(section_name, section_data, store)
+                if not form_sections:
+                    ui.label(
+                        f"No question sections found under '[form]' in {form_path}."  # Updated message
+                    ).classes("text-info")
+                else:
+                    # Create expansion panels for each section from the form data
+                    for (
+                        section_name,
+                        section_data,
+                    ) in form_sections.items():  # Use form_sections
+                        # Ensure section_data is a dictionary before proceeding
+                        if isinstance(section_data, dict):
+                            create_section(section_name, section_data, store)
+                        else:
+                            logger.warning(
+                                f"Skipping invalid section data for '{section_name}' in {form_path}. Expected a dictionary, got {type(section_data)}."
+                            )
+
+
+@trace
+def create_questions() -> None:
+    """Create the questions panel container and set up the initial state and event listener."""
+    global questions_container
+    with ui.element("div").classes(
+        "w-[30%] max-w-xs bg-base-200 p-4 h-full flex flex-col"
+    ):  # Ensure height and flex
+        ui.label("Questions").classes("text-xl font-bold p-1 mb-2")
+
+        # Create the container where questions will be dynamically rendered
+        # Use flex-grow to make it fill available space and overflow-auto for scrolling
+        questions_container = ui.element("div").classes("flex-grow overflow-auto")
+
+        # Initial build with default category (e.g., 'dev')
+        # Consider getting the initial category from options.py default if possible
+        initial_category = "dev"  # Hardcoded for now, could be improved
+        build_questions_ui(initial_category)
+
+        # Define the handler for the category change event
+        async def handle_category_change(event_args: Dict[str, Any]):
+            # The event data might be directly the value or nested in args
+            new_category = (
+                event_args  # Assuming direct value based on options.py trigger
+            )
+            logger.info(
+                f"Received category_changed event with category: {new_category}"
+            )
+            if isinstance(new_category, str):
+                build_questions_ui.refresh(
+                    new_category
+                )  # Refresh the UI with the new category
+            else:
+                logger.warning(f"Received non-string category value: {new_category}")
+
+        # Register the event listener
+        ui.on("category_changed", handle_category_change)
+
+        # The rest of the UI (sections, cards) is now built inside build_questions_ui

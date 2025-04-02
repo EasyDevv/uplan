@@ -82,6 +82,26 @@ async def main():
     except Exception as e:
         logger.exception(f"Error getting models for provider '{provider_to_test}': {e}")
 
+    logger.info("-" * 20)
+
+    # --- Test 4: Get Models by Provider (Ollama - Local API) ---
+    provider_to_test = "ollama"
+    logger.info(
+        f"Attempting to get models for provider: '{provider_to_test}' (uses local API)..."
+    )
+    try:
+        # get_models_by_provider is async, so needs await
+        models = await get_models_by_provider(provider_to_test)
+        if models:
+            logger.info(f"Found local models for '{provider_to_test}': {models}")
+        else:
+            logger.warning(
+                f"No local models found for '{provider_to_test}'. Is Ollama running and accessible at http://localhost:11434?"
+            )
+    except Exception as e:
+        # General exception handling, as specific connection errors are handled within the service
+        logger.exception(f"Error getting models for provider '{provider_to_test}': {e}")
+
     logger.info("--- Initialization Test Finished ---")
 
 

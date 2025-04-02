@@ -1,18 +1,15 @@
 # uplan/init.py
 # Handles application initialization, form copying, and validation.
 
-import asyncio
 import shutil
 import tomllib
 from pathlib import Path
-from typing import List
 
 # Use aiofiles for async file operations where appropriate (though less needed here now)
 # import aiofiles
 from uplan.models.todo import TodoModel
 from uplan.services.litellm_service import (  # Import from the new service
     update_litellm_models,
-    get_models_by_provider,  # Keep this if needed elsewhere, otherwise remove
 )
 from uplan.utils.logging import get_logger, trace
 
