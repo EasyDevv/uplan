@@ -47,6 +47,7 @@ def setup_logging() -> logging.Logger:
         rich_tracebacks=True,  # Rich 트레이스백 활성화
         markup=True,  # Rich 마크업 활성화
         show_path=True,  # 로그 메시지에 파일 경로 표시
+        enable_link_path=True,  # 파일 경로에 터미널 링크 활성화 (터미널 지원 시)
         show_level=True,  # 로그 레벨 표시
         show_time=True,  # 시간 표시
         log_time_format="[%Y-%m-%d %H:%M:%S.%f]",  # 시간 형식 지정
