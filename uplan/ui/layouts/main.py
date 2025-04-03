@@ -9,6 +9,9 @@ from uplan.ui.components.questions import create_questions
 from uplan.ui.components.content import create_content
 from uplan.ui.components.options import create_options
 from uplan.ui.services.stream_service import StreamService
+from uplan.utils.logging import get_logger
+
+logger = get_logger()
 
 
 def create_main_layout(state: AppState) -> None:
@@ -30,6 +33,11 @@ def create_main_layout(state: AppState) -> None:
 
         # Main content wrapper
         with ui.element("div").classes("flex grow"):
-            create_questions()
+            # Left sidebar
+            questions_refresh_trigger = create_questions()
+
+            # Main content
             create_content(stream_service)
-            create_options()
+
+            # Right sidebar
+            create_options(questions_update_trigger=questions_refresh_trigger)

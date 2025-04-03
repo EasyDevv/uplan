@@ -1,8 +1,8 @@
 """Questions panel component for the left sidebar, dynamically loaded based on category."""
 
 from pathlib import Path
-from typing import Dict, Any, Optional
-from nicegui import ui, app
+from typing import Dict, Any, Optional, Callable  # Added Callable
+from nicegui import ui, app  # Removed events
 
 from uplan.config import INPUT_BASE_DIR  # Import config constant
 from uplan.utils.data import load_toml_file
@@ -168,8 +168,8 @@ def build_questions_ui(category: Optional[str] = "dev") -> None:
 
 
 @trace
-def create_questions() -> None:
-    """Create the questions panel container and set up the initial state and event listener."""
+def create_questions() -> Callable:
+    """Create the questions panel container and return its refresh method."""
     global questions_container
     with ui.element("div").classes(
         "w-[30%] max-w-xs bg-base-200 p-4 h-full flex flex-col"
@@ -178,30 +178,12 @@ def create_questions() -> None:
 
         # Create the container where questions will be dynamically rendered
         # Use flex-grow to make it fill available space and overflow-auto for scrolling
-        questions_container = ui.element("div").classes("flex-grow overflow-auto")
+        questions_container = ui.element("div").classes("flex-1 overflow-auto")
 
         # Initial build with default category (e.g., 'dev')
         # Consider getting the initial category from options.py default if possible
         initial_category = "dev"  # Hardcoded for now, could be improved
         build_questions_ui(initial_category)
 
-        # Define the handler for the category change event
-        async def handle_category_change(event_args: Dict[str, Any]):
-            # The event data might be directly the value or nested in args
-            new_category = (
-                event_args  # Assuming direct value based on options.py trigger
-            )
-            logger.info(
-                f"Received category_changed event with category: {new_category}"
-            )
-            if isinstance(new_category, str):
-                build_questions_ui.refresh(
-                    new_category
-                )  # Refresh the UI with the new category
-            else:
-                logger.warning(f"Received non-string category value: {new_category}")
-
-        # Register the event listener
-        ui.on("category_changed", handle_category_change)
-
-        # The rest of the UI (sections, cards) is now built inside build_questions_ui
+        # Return the refresh method so it can be called externally
+        return build_questions_ui.refresh

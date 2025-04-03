@@ -2,14 +2,12 @@
 
 import inspect
 import json
-import os  # Added for listing directories initially, will refine with pathlib
 from pathlib import Path
-from typing import List, Optional  # Added for type hinting
+from typing import List, Optional, Callable  # Added Callable
 
-from nicegui import ui, app, events  # Added events
+from nicegui import ui, app  # Removed events
 
 from uplan.config import INPUT_BASE_DIR, OUTPUT_BASE_DIR  # Import config constants
-from uplan.ui.services.planner import PlannerService
 from uplan.utils.logging import get_logger, trace
 from uplan.ui.state import AppState
 
@@ -78,9 +76,6 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
     llm_service = app.services.get("llm")
     stream_service = app.services.get("stream")
 
-    # Create planner service if needed
-    planner_service = PlannerService(state, llm_service)
-
     # Initialize storage if needed
     if not hasattr(ui.page, "_storage"):
         ui.page._storage = {}
@@ -100,7 +95,6 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                         ui.select(
                             options=providers,
                             value=default_provider,
-                            label="Select Provider",
                         )
                         .classes("w-full")
                         .props("dense options-dense")
@@ -113,7 +107,6 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                         ui.select(
                             options=default_models,
                             value=default_model,
-                            label="Select Model",
                         )
                         .classes("w-full")
                         .props("dense options-dense")
@@ -156,11 +149,34 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
 
                 with ui.card().classes("w-full"):
                     ui.label("Category").classes("text-sm font-medium mb-1")
+
+                    # Define the callback function first
+                    def handle_category_change(e):
+                        """Handles category selection change via on_change.
+
+                        Updates the input folder display and triggers the questions UI refresh.
+
+                        Args:
+                            e: The event object containing the new value.
+                        """
+                        new_category = e.value
+                        update_input_folder_display()  # Assumes category_select.value is updated internally by NiceGUI before on_change
+
+                        # Trigger the questions UI update if the callback is provided
+                        if questions_update_trigger:
+                            logger.debug(
+                                f"Category changed to {new_category}, triggering questions update."
+                            )
+                            questions_update_trigger(
+                                new_category
+                            )  # Pass the new category
+
                     category_select = (
                         ui.select(
                             options=category_options,
                             value=default_category,
                             label="Select Category",
+                            on_change=handle_category_change,  # Use on_change here
                         )
                         .classes("w-full")
                         .props("dense options-dense")
@@ -207,37 +223,10 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                     input_folder_display.set_value(new_path)
                     logger.debug(f"Input folder display updated to: {new_path}")
 
-                async def handle_category_change(event: events.GenericEventArguments):
-                    """Handle category change event."""
-                    new_category = event.args.get("category")
-                    if new_category:
-                        logger.info(f"Category changed to: {new_category}")
-                        update_input_folder_display()
-                        # Emit event for questions component
-                        # Emit event via JavaScript CustomEvent
-                        ui.run_javascript(
-                            f"window.dispatchEvent(new CustomEvent('category_changed', {{detail: {{ value: '{new_category}' }} }}));"
-                        )
-                    else:
-                        logger.warning(
-                            "Category change event received without category value."
-                        )
+                # Removed unused handle_category_change function as we now use a direct callback
 
-                # Register category change handler using ui.on for generic events
-                # Note: We emit 'category_changed' below, this is where it would be caught if needed *within* this component
-                # ui.on('category_changed', handle_category_change) # Example if needed here
-
-                # Bind category select change to update input folder and emit event
-                category_select.on(
-                    "update:model-value",
-                    lambda e: (
-                        update_input_folder_display(),
-                        # Emit event via JavaScript CustomEvent
-                        ui.run_javascript(
-                            f"window.dispatchEvent(new CustomEvent('category_changed', {{detail: {{ value: '{e.args}' }} }}));"
-                        ),
-                    ),
-                )
+                # The on_change handler is now directly attached to the ui.select definition above.
+                # The category_selected function and the .on() binding below are no longer needed.
 
                 async def connect_to_stream(stream_id: str, operation_type: str):
                     """Connect to a stream by ID and display results."""

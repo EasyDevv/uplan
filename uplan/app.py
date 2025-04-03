@@ -9,8 +9,6 @@ from typing import Any, Dict
 
 from nicegui import app as nicegui_app, ui
 
-# uplan.init 모듈에서 initialize 함수 임포트
-from uplan.init import initialize
 from uplan.ui.layouts.main import create_main_layout
 from uplan.ui.services.llm import LLMService
 from uplan.ui.services.state_service import StateService
@@ -58,6 +56,7 @@ class App:
         # Register services with NiceGUI app
         if not hasattr(nicegui_app, "services"):
             nicegui_app.services = {}
+
         nicegui_app.services.update(self.services)
 
     def setup_folders(
