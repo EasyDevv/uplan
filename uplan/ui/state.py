@@ -20,11 +20,16 @@ class AppState:
     # Singleton instance
     _instance: ClassVar[Optional["AppState"]] = None
 
-    # Model configuration
-    model: str = "ollama/qwq"
-    input_path: str = "./input"
-    output_path: str = "./output"
-    retry: int = 5
+    # Model and execution configuration
+    provider: Optional[str] = None  # Added provider
+    model: Optional[str] = (
+        None  # Changed default to None, will be set by UI/OptionService
+    )
+    category: Optional[str] = None  # Added category
+    input_path: Optional[str] = None  # Changed default to None
+    output_path: Optional[str] = None  # Changed default to None
+    max_retries: Optional[int] = 5  # Added max_retries (renamed from retry for clarity)
+    operation_type: Optional[str] = None  # Added operation_type
 
     # Processing state
     processing: bool = False

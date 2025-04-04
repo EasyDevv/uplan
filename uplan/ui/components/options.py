@@ -1,79 +1,48 @@
 """Options panel component for the right sidebar."""
 
-import json
 from pathlib import Path
-from typing import List, Optional, Callable  # Added Callable
+from typing import Optional, Callable  # Removed List, added imports for services
 
-from nicegui import ui, app  # Removed events
+from nicegui import ui, app
 
-from uplan.config import INPUT_BASE_DIR, OUTPUT_BASE_DIR  # Import config constants
+from uplan.config import INPUT_BASE_DIR, OUTPUT_BASE_DIR
 from uplan.utils.logging import get_logger, trace
 from uplan.ui.state import AppState
 
+# Import services
+from uplan.services.llm_service import LLMService
+from uplan.services.stream_service import StreamService
+from uplan.services.option_service import OptionService
+
+
 logger = get_logger()
-
-# Load model data
-MODEL_INFO_PATH = Path("input/model_info.json")
-model_data = {}
-if MODEL_INFO_PATH.exists():
-    try:
-        with open(MODEL_INFO_PATH, "r", encoding="utf-8") as f:
-            model_data = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Failed to load or parse {MODEL_INFO_PATH}: {e}")
-        model_data = {"ollama": ["gemma3:1b"]}  # Fallback
-else:
-    logger.warning(f"{MODEL_INFO_PATH} not found. Using default model list.")
-    model_data = {"ollama": ["gemma3:1b"]}  # Default fallback
-
-# Prepare initial provider and model lists
-providers = sorted(list(model_data.keys()))
-default_provider = (
-    "ollama" if "ollama" in providers else (providers[0] if providers else None)
-)
-default_models = sorted(model_data.get(default_provider, []))
-default_model = (
-    "gemma3:1b"
-    if "gemma3:1b" in default_models
-    else (default_models[0] if default_models else None)
-)
-
-# Removed create_option_card as it's less flexible for mixed types like dropdowns
+# Service instances will be created/retrieved here
 
 
-# Helper function to get category directories using config
-def get_category_options(input_base_path: Path = INPUT_BASE_DIR) -> List[str]:
-    """Gets a list of directory names from the configured input path."""
-    base_path = input_base_path  # Use the Path object directly
-    categories = []
-    if base_path.is_dir():
-        try:
-            categories = sorted(
-                [item.name for item in base_path.iterdir() if item.is_dir()]
-            )
-        except OSError as e:
-            logger.error(f"Error reading directories from {base_path}: {e}")
-    if not categories:
-        logger.warning(
-            f"No category directories found in {base_path}. Defaulting to ['dev']."
-        )
-        return ["dev"]  # Fallback if no dirs found or error
-    return categories
-
-
-# Correctly indented function definition follows
-def create_options(questions_update_trigger: Optional[callable] = None) -> None:
+def create_options(
+    questions_update_trigger: Optional[Callable] = None,
+) -> None:  # Changed callable to Callable
     """Create the options panel in the right sidebar.
 
     Args:
         questions_update_trigger: Optional callable to trigger question updates.
     """
-    # Initialize application state
-    state = AppState()
+    # Initialize services and state
+    state = AppState()  # Keep state for now, services might need it
+    option_service = OptionService()  # Instantiate OptionService directly
+    # Retrieve LLM and Stream services (assuming they are registered in app startup)
+    # If not registered, they might need to be instantiated here, potentially passing state
+    llm_service: LLMService = app.services.get("llm")
+    stream_service: StreamService = app.services.get("stream")
 
-    # Get the services from app.services
-    llm_service = app.services.get("llm")
-    stream_service = app.services.get("stream")
+    if not llm_service or not stream_service:
+        logger.error(
+            "LLMService or StreamService not found in app.services. UI might not function correctly."
+        )
+        # Optionally, raise an error or display a notification
+        # For now, we'll proceed, but operations requiring these services will fail.
+        # llm_service = LLMService(state) # Fallback instantiation if needed
+        # stream_service = StreamService(state) # Fallback instantiation if needed
 
     # Initialize storage if needed
     if not hasattr(ui.page, "_storage"):
@@ -87,34 +56,13 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
             with ui.element("div").classes(
                 "mb-20 space-y-4"
             ):  # Added spacing between cards
-                # --- Provider Selection ---
-                with ui.card().classes("w-full"):
-                    ui.label("Provider").classes("text-sm font-medium mb-1")
-                    provider_select = (
-                        ui.select(
-                            options=providers,
-                            value=default_provider,
-                        )
-                        .classes("w-full")
-                        .props("dense options-dense")
-                    )
-
-                # --- Model Selection ---
-                with ui.card().classes("w-full"):
-                    ui.label("Model").classes("text-sm font-medium mb-1")
-                    model_select = (
-                        ui.select(
-                            options=default_models,
-                            value=default_model,
-                        )
-                        .classes("w-full")
-                        .props("dense options-dense")
-                    )
-
-                def update_models():
-                    """Update model dropdown options based on selected provider."""
+                # --- Define update_models callback first ---
+                def update_models() -> None:
+                    """Update model dropdown options based on selected provider using OptionService."""
                     selected_provider = provider_select.value
-                    models = sorted(model_data.get(selected_provider, []))
+                    models = option_service.get_models_for_provider(
+                        selected_provider
+                    )  # Use service
                     model_select.options = models
                     # Try to keep the current model if it exists for the new provider, else select the first one
                     current_model_value = model_select.value
@@ -134,195 +82,246 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                         f"Provider changed to {selected_provider}. Models updated: {models}. Selected: {model_select.value}"
                     )
 
-                provider_select.on(
-                    "update:model-value", update_models
-                )  # Use 'update:model-value' for immediate reaction
-
-                # --- Category Selection (Uses INPUT_BASE_DIR via get_category_options) ---
-                category_options = get_category_options()  # Use config default path
-                default_category = (
-                    "dev"
-                    if "dev" in category_options
-                    else (category_options[0] if category_options else None)
+                # --- Provider Selection ---
+                providers = option_service.get_providers()
+                default_provider, default_models_list = (
+                    option_service.get_default_provider_and_models()
                 )
-
                 with ui.card().classes("w-full"):
-                    ui.label("Category").classes("text-sm font-medium mb-1")
-
-                    # Define the callback function first
-                    def handle_category_change(e):
-                        """Handles category selection change via on_change.
-
-                        Updates the input folder display and triggers the questions UI refresh.
-
-                        Args:
-                            e: The event object containing the new value.
-                        """
-                        new_category = e.value
-                        update_input_folder_display()  # Assumes category_select.value is updated internally by NiceGUI before on_change
-
-                        # Trigger the questions UI update if the callback is provided
-                        if questions_update_trigger:
-                            logger.debug(
-                                f"Category changed to {new_category}, triggering questions update."
-                            )
-                            questions_update_trigger(
-                                new_category
-                            )  # Pass the new category
-
-                    category_select = (
+                    ui.label("Provider").classes("text-sm font-medium mb-1")
+                    provider_select = (
                         ui.select(
-                            options=category_options,
-                            value=default_category,
-                            label="Select Category",
-                            on_change=handle_category_change,  # Use on_change here
+                            options=providers,
+                            value=default_provider,  # Use value from option_service
+                        )
+                        .classes("w-full")
+                        .props("dense options-dense")
+                        .on(
+                            "update:model-value", update_models
+                        )  # Correctly chained .on()
+                    )
+
+                # --- Model Selection ---
+                default_model = option_service.get_default_model(default_models_list)
+                with ui.card().classes("w-full"):
+                    ui.label("Model").classes("text-sm font-medium mb-1")
+                    model_select = (
+                        ui.select(
+                            options=default_models_list,  # Use value from option_service
+                            value=default_model,  # Use value from option_service
                         )
                         .classes("w-full")
                         .props("dense options-dense")
                     )
 
-                # --- Input Folder (Readonly based on Category) ---
-                with ui.card().classes("w-full"):
-                    ui.label("Input Folder").classes("text-sm font-medium mb-1")
-                    # Display the input folder path, make it readonly as it's derived from category
-                    # Display the input folder path using INPUT_BASE_DIR, make it readonly
-                    input_folder_display = (
-                        ui.input(
-                            value=str(
-                                INPUT_BASE_DIR / category_select.value
-                            ),  # Use Path object and convert to string
-                            placeholder="Input folder path",
-                        )
-                        .classes("w-full")
-                        .props("readonly")
-                    )
+                # update_models function definition moved above provider_select
+                # Removed duplicated/incorrect .on() call here
+            # --- Category Selection ---
+            category_options = option_service.get_category_options()  # Use service
+            default_category = option_service.get_default_category(
+                category_options
+            )  # Use service
 
-                # --- Output Folder ---
-                with ui.card().classes("w-full"):
-                    ui.label("Output Folder").classes("text-sm font-medium mb-1")
-                    # Use OUTPUT_BASE_DIR for default value, convert to string
-                    output_folder = ui.input(
-                        value=str(OUTPUT_BASE_DIR),
-                        placeholder="Enter output folder path",
-                    ).classes("w-full")
+            with ui.card().classes("w-full"):
+                ui.label("Category").classes("text-sm font-medium mb-1")
 
-                # --- Retry Count ---
-                with ui.card().classes("w-full"):
-                    ui.label("Max Retries").classes("text-sm font-medium mb-1")
-                    retry_input = ui.number(value=5, min=1, max=10).classes("w-full")
+                # Define the callback function first
+                def handle_category_change(e):
+                    """Handles category selection change via on_change.
 
-                # Loading indicator
-                loading_indicator = ui.spinner("dots").classes("hidden")
-
-                # --- Event Handlers ---
-                def update_input_folder_display():
-                    """Update the readonly input folder display based on category using INPUT_BASE_DIR."""
-                    # Construct path using INPUT_BASE_DIR and convert to string
-                    new_path = str(INPUT_BASE_DIR / category_select.value)
-                    input_folder_display.set_value(new_path)
-                    logger.debug(f"Input folder display updated to: {new_path}")
-
-                # Removed unused handle_category_change function as we now use a direct callback
-
-                # The on_change handler is now directly attached to the ui.select definition above.
-                # The category_selected function and the .on() binding below are no longer needed.
-
-                async def connect_to_stream(stream_id: str, operation_type: str):
-                    """Connect to a stream by ID and display results."""
-                    storage = getattr(ui.page, "_storage", {})
-                    stream_display = storage.get("stream_display")
-
-                    if not stream_display:
-                        ui.notify("Stream display area not found", type="warning")
-                        return
-                    with stream_display:
-                        with ui.card().classes("w-full mb-4 h-auto"):
-                            ui.label(
-                                f"Generated {operation_type} - Processing..."
-                            ).classes("card-title")
-                            content = ui.markdown("").classes(
-                                "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow"
-                            )
-                            await stream_service.bind_to_ui_element(stream_id, content)
-
-                async def process_operation(
-                    operation_type: str, display_name: str
-                ) -> None:
-                    """Process an operation with the LLM.
+                    Updates the input folder display and triggers the questions UI refresh.
 
                     Args:
-                        operation_type: The type of operation to process ('plan', 'todo', or 'all')
-                        display_name: The display name to show in the UI
+                        e: The event object containing the new value.
                     """
-                    logger.info(
-                        "Processing operation",
-                        extra={
-                            "operation_type": operation_type,
-                            "display_name": display_name,
-                        },
+                    new_category = e.value
+                    update_input_folder_display(new_category)  # Pass category directly
+
+                    # Trigger the questions UI update if the callback is provided
+                    if questions_update_trigger:
+                        logger.debug(
+                            f"Category changed to {new_category}, triggering questions update."
+                        )
+                        questions_update_trigger(new_category)  # Pass the new category
+
+                category_select = (
+                    ui.select(
+                        options=category_options,
+                        value=default_category,
+                        label="Select Category",
+                        on_change=handle_category_change,  # Use on_change here
                     )
-                    try:
-                        loading_indicator.classes("visible")
+                    .classes("w-full")
+                    .props("dense options-dense")
+                )
 
-                        state.reset_processing()
-
-                        # Update state with form values
-                        state.provider = provider_select.value
-                        state.model = model_select.value
-                        state.category = (
+            # --- Input Folder (Readonly based on Category) ---
+            with ui.card().classes("w-full"):
+                ui.label("Input Folder").classes("text-sm font-medium mb-1")
+                # Display the input folder path using INPUT_BASE_DIR, make it readonly
+                input_folder_display = (
+                    ui.input(
+                        value=option_service.get_input_path_for_category(
                             category_select.value
-                        )  # Use category_select value
-                        state.input_path = (
-                            input_folder_display.value
-                        )  # Use display value
-                        state.output_path = output_folder.value
-                        state.max_retries = retry_input.value
-                        state.operation_type = operation_type
-
-                        # Process request with streaming
-                        # Pass the operation type through state instead of as a parameter
-                        stream_id = await llm_service.process_request()
-
-                        if stream_id:
-                            logger.info(f"Stream ID received: {stream_id}")
-
-                            await connect_to_stream(stream_id, display_name)
-                        else:
-                            ui.notify(
-                                "No stream ID returned from LLM service",
-                                type="negative",
-                            )
-
-                    except Exception as e:
-                        ui.notify(f"Error: {str(e)}", type="negative")
-                    finally:
-                        loading_indicator.classes("hidden")
-
-                @trace
-                async def on_plan_click() -> None:
-                    await process_operation("plan", "Plan")
-
-                @trace
-                async def on_todo_click() -> None:
-                    await process_operation("todo", "Todo List")
-
-                @trace
-                async def on_all_click() -> None:
-                    await process_operation("all", "Plan & Todo")
-
-                def on_stop_click() -> None:
-                    """Handle stop button click."""
-                    state = AppState.get_instance()
-                    state.stream_controller.request_stop()
-                    stream_service.stop_all_streams()
-
-                    ui.notify("Stopping LLM processing...", type="info")
-
-                with ui.row().classes("w-full gap-2"):
-                    ui.button("Plan", on_click=on_plan_click).classes("flex-grow")
-                    ui.button("Todo", on_click=on_todo_click).classes("flex-grow")
-                with ui.row().classes("w-full gap-2 mt-2"):
-                    ui.button("All", on_click=on_all_click).classes("flex-grow")
-                    ui.button("Stop", on_click=on_stop_click).classes(
-                        "flex-grow bg-negative"
+                        ),  # Use service
+                        placeholder="Input folder path",
                     )
+                    .classes("w-full")
+                    .props("readonly")
+                )
+
+            # --- Output Folder ---
+            with ui.card().classes("w-full"):
+                ui.label("Output Folder").classes("text-sm font-medium mb-1")
+                # Use OUTPUT_BASE_DIR for default value, convert to string
+                output_folder = ui.input(
+                    value=option_service.get_default_output_path(
+                        OUTPUT_BASE_DIR
+                    ),  # Use service
+                    placeholder="Enter output folder path",
+                ).classes("w-full")
+
+            # --- Retry Count ---
+            with ui.card().classes("w-full"):
+                ui.label("Max Retries").classes("text-sm font-medium mb-1")
+                retry_input = ui.number(value=5, min=1, max=10).classes("w-full")
+
+            # Loading indicator
+            loading_indicator = ui.spinner("dots").classes("hidden")
+
+            # --- Event Handlers (will be updated to use services) ---
+            def update_input_folder_display(category: str):
+                """Update the readonly input folder display based on category using OptionService."""
+                new_path = option_service.get_input_path_for_category(
+                    category
+                )  # Use service
+                input_folder_display.set_value(new_path)
+                logger.debug(f"Input folder display updated to: {new_path}")
+
+            # Removed unused handle_category_change function as we now use a direct callback
+
+            # The on_change handler is now directly attached to the ui.select definition above.
+            # The category_selected function and the .on() binding below are no longer needed.
+
+            # connect_to_stream and process_operation logic moved to services
+            # Re-define helpers to use services
+
+            async def connect_to_stream(stream_id: str, operation_type: str):
+                """Connect to a stream by ID and display results using StreamService."""
+                storage = getattr(ui.page, "_storage", {})
+                stream_display = storage.get("stream_display")
+
+                if not stream_display:
+                    logger.error("Stream display area not found in page storage.")
+                    ui.notify("Stream display area not found", type="warning")
+                    return
+                if not stream_service:
+                    logger.error("StreamService not available.")
+                    ui.notify("Streaming service is unavailable.", type="negative")
+                    return
+
+                with stream_display:
+                    # Create a unique card for each stream display
+                    card_id = f"stream_card_{stream_id}"
+                    with (
+                        ui.card().classes("w-full mb-4 h-auto").props(f'id="{card_id}"')
+                    ):
+                        ui.label(f"Generated {operation_type} - Processing...").classes(
+                            "card-title"
+                        )
+                        content = ui.markdown("").classes(
+                            "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow"
+                        )
+                        # Pass the markdown element to the service for updates
+                        await stream_service.bind_to_ui_element(stream_id, content)
+
+            async def process_operation(operation_type: str, display_name: str) -> None:
+                """Process an operation using LLMService and StreamService.
+
+                Args:
+                    operation_type: The type of operation ('plan', 'todo', 'all').
+                    display_name: The display name for the UI.
+                """
+                if not llm_service or not stream_service:
+                    logger.error("LLM or Stream service not available for processing.")
+                    ui.notify("Required services are unavailable.", type="negative")
+                    return
+
+                logger.info(
+                    "Processing operation",
+                    extra={
+                        "operation_type": operation_type,
+                        "display_name": display_name,
+                    },
+                )
+                try:
+                    loading_indicator.classes(remove="hidden")  # Show spinner
+
+                    state.reset_processing()  # Reset any previous state flags
+
+                    # Update state with current form values BEFORE calling service
+                    state.provider = provider_select.value
+                    state.model = model_select.value
+                    state.category = category_select.value
+                    state.input_path = input_folder_display.value  # Get current value
+                    state.output_path = output_folder.value
+                    state.max_retries = retry_input.value
+                    state.operation_type = operation_type  # Set the specific operation
+
+                    # Call LLMService to process the request (which uses the state)
+                    stream_id = await llm_service.process_request()
+
+                    if stream_id:
+                        logger.info(f"Stream ID received: {stream_id}")
+                        # Connect the stream to the UI
+                        await connect_to_stream(stream_id, display_name)
+                    else:
+                        logger.error("No stream ID returned from LLM service.")
+                        ui.notify(
+                            "Failed to initiate processing stream.", type="negative"
+                        )
+
+                except Exception as e:
+                    logger.error(
+                        f"Error during '{display_name}' operation: {e}", exc_info=True
+                    )
+                    ui.notify(
+                        f"Error processing {display_name}: {str(e)}", type="negative"
+                    )
+                finally:
+                    loading_indicator.classes(add="hidden")  # Hide spinner
+
+            @trace
+            async def on_plan_click() -> None:
+                await process_operation("plan", "Plan")
+
+            @trace
+            async def on_todo_click() -> None:
+                await process_operation("todo", "Todo List")
+
+            @trace
+            async def on_all_click() -> None:
+                await process_operation("all", "Plan & Todo")
+
+            def on_stop_click() -> None:
+                """Handle stop button click using StreamService."""
+                if not stream_service:
+                    logger.error("StreamService not available to stop streams.")
+                    ui.notify("Streaming service is unavailable.", type="negative")
+                    return
+
+                logger.info("Stop button clicked.")
+                # No need to get state instance here, service handles it
+                stream_service.stop_all_streams()
+                ui.notify("Stopping LLM processing...", type="info")
+
+            with ui.row().classes("w-full gap-2"):
+                ui.button("Plan", on_click=on_plan_click).classes("flex-grow")
+                ui.button("Todo", on_click=on_todo_click).classes("flex-grow")
+            with ui.row().classes("w-full gap-2 mt-2"):
+                ui.button("All", on_click=on_all_click).classes("flex-grow")
+                ui.button("Stop", on_click=on_stop_click).classes(
+                    "flex-grow bg-negative"
+                )
+
+                # Removed duplicated code block from here to end of file

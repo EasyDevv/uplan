@@ -10,8 +10,14 @@ from typing import Any, Dict
 from nicegui import app as nicegui_app, ui
 
 from uplan.ui.layouts.main import create_main_layout
-from uplan.ui.services.llm import LLMService
-from uplan.ui.services.state_service import StateService
+
+# Updated import paths for services
+from uplan.services.llm_service import LLMService
+from uplan.services.stream_service import StreamService
+
+# StateService seems specific to UI state management, keep its location or refactor if needed.
+# Assuming StateService remains UI-specific for now.
+from uplan.ui.services.state_service import StateService  # Keep original path for now
 from uplan.ui.services.stream_service import StreamService
 from uplan.ui.state import AppState
 from uplan.utils.provider import check_model_support, setup_env
