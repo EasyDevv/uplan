@@ -207,12 +207,14 @@ def create_options(
             # Re-define helpers to use services
 
             async def connect_to_stream(stream_id: str, operation_type: str):
-                """Connect to a stream by ID and display results using StreamService."""
+                """Connect to a stream by ID and delegate UI creation/binding to StreamService."""
                 storage = getattr(ui.page, "_storage", {})
-                stream_display = storage.get("stream_display")
+                stream_display_container = storage.get(
+                    "stream_display"
+                )  # Get the container
 
-                if not stream_display:
-                    logger.error("Stream display area not found in page storage.")
+                if not stream_display_container:
+                    logger.error("Stream display container not found in page storage.")
                     ui.notify("Stream display area not found", type="warning")
                     return
                 if not stream_service:
@@ -220,20 +222,23 @@ def create_options(
                     ui.notify("Streaming service is unavailable.", type="negative")
                     return
 
-                with stream_display:
-                    # Create a unique card for each stream display
-                    card_id = f"stream_card_{stream_id}"
-                    with (
-                        ui.card().classes("w-full mb-4 h-auto").props(f'id="{card_id}"')
-                    ):
-                        ui.label(f"Generated {operation_type} - Processing...").classes(
-                            "card-title"
-                        )
-                        content = ui.markdown("").classes(
-                            "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow"
-                        )
-                        # Pass the markdown element to the service for updates
-                        await stream_service.bind_to_ui_element(stream_id, content)
+                # Delegate UI creation and binding to the StreamService
+                # Assumes StreamService has a method like create_and_bind_stream_ui
+                try:
+                    await stream_service.create_and_bind_stream_ui(
+                        stream_id=stream_id,
+                        operation_type=operation_type,
+                        container=stream_display_container,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Error calling stream_service.create_and_bind_stream_ui: {e}",
+                        exc_info=True,
+                    )
+                    ui.notify(
+                        f"Failed to display stream output for {operation_type}.",
+                        type="negative",
+                    )
 
             async def process_operation(operation_type: str, display_name: str) -> None:
                 """Process an operation using LLMService and StreamService.
