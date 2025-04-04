@@ -1,6 +1,5 @@
 """Options panel component for the right sidebar."""
 
-import inspect
 import json
 from pathlib import Path
 from typing import List, Optional, Callable  # Added Callable
@@ -232,6 +231,7 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                     """Connect to a stream by ID and display results."""
                     storage = getattr(ui.page, "_storage", {})
                     stream_display = storage.get("stream_display")
+
                     if not stream_display:
                         ui.notify("Stream display area not found", type="warning")
                         return
@@ -254,17 +254,16 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                         operation_type: The type of operation to process ('plan', 'todo', or 'all')
                         display_name: The display name to show in the UI
                     """
-                    func_name = inspect.currentframe().f_code.co_name
                     logger.info(
                         "Processing operation",
                         extra={
-                            "function": func_name,
                             "operation_type": operation_type,
                             "display_name": display_name,
                         },
                     )
                     try:
                         loading_indicator.classes("visible")
+
                         state.reset_processing()
 
                         # Update state with form values
@@ -285,10 +284,8 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                         stream_id = await llm_service.process_request()
 
                         if stream_id:
-                            logger.info(
-                                f"Stream ID received: {stream_id}",
-                                extra={"function": func_name},
-                            )
+                            logger.info(f"Stream ID received: {stream_id}")
+
                             await connect_to_stream(stream_id, display_name)
                         else:
                             ui.notify(
@@ -301,29 +298,16 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                     finally:
                         loading_indicator.classes("hidden")
 
+                @trace
                 async def on_plan_click() -> None:
-                    """Handle plan button click."""
-                    func_name = inspect.currentframe().f_code.co_name
-                    logger.info(
-                        "Starting plan generation", extra={"function": func_name}
-                    )
                     await process_operation("plan", "Plan")
 
+                @trace
                 async def on_todo_click() -> None:
-                    """Handle todo button click."""
-                    func_name = inspect.currentframe().f_code.co_name
-                    logger.info(
-                        "Starting todo generation", extra={"function": func_name}
-                    )
                     await process_operation("todo", "Todo List")
 
+                @trace
                 async def on_all_click() -> None:
-                    """Handle all (plan + todo) button click."""
-                    func_name = inspect.currentframe().f_code.co_name
-                    logger.info(
-                        "Starting combined plan & todo generation",
-                        extra={"function": func_name},
-                    )
                     await process_operation("all", "Plan & Todo")
 
                 def on_stop_click() -> None:
@@ -331,6 +315,7 @@ def create_options(questions_update_trigger: Optional[callable] = None) -> None:
                     state = AppState.get_instance()
                     state.stream_controller.request_stop()
                     stream_service.stop_all_streams()
+
                     ui.notify("Stopping LLM processing...", type="info")
 
                 with ui.row().classes("w-full gap-2"):

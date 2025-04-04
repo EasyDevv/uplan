@@ -8,7 +8,6 @@ from uplan.ui.components.header import create_header
 from uplan.ui.components.questions import create_questions
 from uplan.ui.components.content import create_content
 from uplan.ui.components.options import create_options
-from uplan.ui.services.stream_service import StreamService
 from uplan.utils.logging import get_logger
 
 logger = get_logger()
