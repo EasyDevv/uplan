@@ -4,7 +4,7 @@ import click
 from pathlib import Path
 from rich import print
 
-from uplan.app import App  # App 클래스를 직접 임포트
+from uplan.app import UplanApp  # App 클래스를 직접 임포트
 from uplan.init import initialize
 from uplan.process import get_all, get_plan, get_todo
 
@@ -54,7 +54,7 @@ def common_options(f):
 @click.pass_context
 def cli(ctx, **kwargs):
     """UPlan - Command Line Interface (subsidiary to GUI)"""
-    app = App()  # CLI 실행 시 App 인스턴스 생성
+    app = UplanApp()  # CLI 실행 시 App 인스턴스 생성
     if ctx.invoked_subcommand is None:
         # Validate model
         if not app.validate_model(kwargs["model"]):
@@ -93,7 +93,7 @@ def cli(ctx, **kwargs):
 @common_options
 def plan(**kwargs):
     """Generate plan only"""
-    app = App()
+    app = UplanApp()
     if not app.validate_model(kwargs["model"]):
         return
 
@@ -120,7 +120,7 @@ def plan(**kwargs):
 @common_options
 def todo(**kwargs):
     """Generate todo only"""
-    app = App()
+    app = UplanApp()
     if not app.validate_model(kwargs["model"]):
         return
 

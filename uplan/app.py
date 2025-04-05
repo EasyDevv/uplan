@@ -15,15 +15,11 @@ from uplan.ui.layouts.main import create_main_layout
 from uplan.services.llm_service import LLMService
 from uplan.services.stream_service import StreamService
 
-# StateService seems specific to UI state management, keep its location or refactor if needed.
-# Assuming StateService remains UI-specific for now.
-from uplan.ui.services.state_service import StateService  # Keep original path for now
-from uplan.ui.services.stream_service import StreamService
 from uplan.ui.state import AppState
 from uplan.utils.provider import check_model_support, setup_env
 
 
-class App:
+class UplanApp:
     """Central application class with GUI as primary and CLI as secondary mode."""
 
     def __init__(self):
@@ -34,30 +30,16 @@ class App:
         setup_env()
 
         # Initialize configuration (forms, models) before starting services or UI
-        # GUI 환경에서는 기본값으로 초기화 (force=False, form_dir='dev')
-        # TODO: GUI 설정에서 form_dir 등을 선택할 수 있도록 기능 추가 고려
-        # try:
-        #     initialize()  # 기본값 사용
-        # except Exception as e:
-        #     # 초기화 실패 시 로깅 또는 사용자 알림 처리 필요
-        #     # 여기서는 간단히 에러를 출력합니다. 실제 애플리케이션에서는 더 견고한 처리가 필요합니다.
-        #     print(f"[ERROR] Failed to initialize application: {e}")
-        #     # 초기화 실패 시 GUI 실행을 중단할 수도 있습니다.
-        #     # raise SystemExit("Initialization failed, cannot start GUI.") from e
-
         self._initialize_services()
 
     def _initialize_services(self) -> None:
         """Initialize and register core services."""
-        # Setup base services
-        state_service = StateService()
         stream_service = StreamService(self.state.stream_controller)
         llm_service = LLMService(self.state, stream_service)
 
         # Register services
-        self.services.update(
-            {"state": state_service, "stream": stream_service, "llm": llm_service}
-        )
+        self.services["stream"] = stream_service
+        self.services["llm"] = llm_service
 
         # Register services with NiceGUI app
         if not hasattr(nicegui_app, "services"):
@@ -103,8 +85,8 @@ class App:
         cli()
 
 
-# if __name__ in {"__main__", "__mp_main__"}:
-#     # This block might be removed if direct execution of app.py is not intended.
-#     # For now, let's assume it might be used for GUI testing/dev.
-#     temp_app = create_app()
-#     temp_app.run_gui()  # Default to GUI if run directly
+if __name__ in {"__main__", "__mp_main__"}:
+    # This block might be removed if direct execution of app.py is not intended.
+    # For now, let's assume it might be used for GUI testing/dev.
+    temp_app = UplanApp()
+    temp_app.run_gui()  # Default to GUI if run directly

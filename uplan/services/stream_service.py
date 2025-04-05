@@ -1,81 +1,151 @@
-"""Service for managing LLM streams and updating UI elements."""
+# uplan/services/stream_service.py
+"""Stream service for managing LLM streaming operations and controllers."""
 
-from typing import Dict
+from typing import Dict, Optional
+from contextlib import suppress  # For cleaner task cancellation handling
 
-from nicegui import ui
-
-from uplan.ui.state import AppState
+from uplan.utils.reactive import ReactiveStream
+from uplan.utils.stream import StreamController
 from uplan.utils.logging import get_logger, trace
-# Add imports for StreamController or related stream handling logic if needed
 
 logger = get_logger()
 
 
 class StreamService:
-    """Manages LLM stream connections and UI updates."""
+    """Service for managing LLM streaming operations via ReactiveStreams and StreamController.
 
-    def __init__(self, state: AppState):
-        """Initialize the StreamService.
+    This service acts as a central point for creating, retrieving, and managing
+    data streams associated with LLM operations. It interacts with the
+    StreamController to handle the underlying asynchronous tasks and cancellation.
+    UI components should subscribe to the ReactiveStreams provided by this service
+    to display updates.
+    """
+
+    def __init__(self, stream_controller: StreamController):
+        """Initialize the stream service.
 
         Args:
-            state: The application state instance containing the StreamController.
+            stream_controller: The controller for managing stream tasks.
+
+        Raises:
+            TypeError: If stream_controller is not an instance of StreamController.
         """
-        self.state = state
-        # Store active stream bindings if needed (e.g., stream_id -> ui_element)
-        self.active_streams: Dict[str, ui.markdown] = {}
+        if not isinstance(stream_controller, StreamController):
+            logger.error(
+                f"StreamService initialized with invalid StreamController type: {type(stream_controller)}"
+            )
+            raise TypeError("stream_controller must be an instance of StreamController")
+
+        self.stream_controller = stream_controller
+        self.active_streams: Dict[str, ReactiveStream] = {}
+        self._current_stream_id: Optional[str] = None
         logger.info("StreamService initialized.")
 
     @trace
-    async def bind_to_ui_element(self, stream_id: str, element: ui.markdown) -> None:
-        """Binds a stream ID to a NiceGUI UI element for displaying content.
+    def create_stream(self, stream_id: str) -> ReactiveStream:
+        """Create a new named reactive stream or retrieve an existing one.
+
+        If a stream with the same ID already exists, it completes the old one
+        before creating a new one. This ensures only one active stream per ID.
 
         Args:
-            stream_id: The unique identifier for the LLM stream.
-            element: The NiceGUI ui.markdown element to update with stream content.
+            stream_id: Unique identifier for this stream.
+
+        Returns:
+            A reactive stream instance.
         """
-        logger.info(f"Binding stream {stream_id} to UI element {element.id}")
-        self.active_streams[stream_id] = element
+        if stream_id in self.active_streams:
+            logger.warning(
+                f"Stream ID '{stream_id}' already exists. Completing the old stream before creating a new one.",
+                extra={"stream_id": stream_id},
+            )
+            # Complete the existing stream cleanly
+            self.stop_stream(stream_id)  # stop_stream handles removal from dict
 
-        # --- Placeholder for actual stream handling logic ---
-        # This logic will likely involve interacting with self.state.stream_controller
-        # or a similar mechanism to receive data for stream_id and update element.
-        # Example:
-        # async for chunk in self.state.stream_controller.get_stream(stream_id):
-        #     element.content += chunk # Or use element.set_content for full updates
-        #     await element.update() # Ensure UI updates
-        #
-        # # Clean up after stream ends
-        # del self.active_streams[stream_id]
-        # logger.info(f"Stream {stream_id} finished and unbound.")
+        logger.info(
+            f"Creating new reactive stream with ID: {stream_id}",
+            extra={"stream_id": stream_id},
+        )
+        stream = ReactiveStream()
+        self.active_streams[stream_id] = stream
+        self._current_stream_id = stream_id  # Track the latest created stream
+        return stream
 
-        # Simulate stream content for now
-        import asyncio
+    @trace
+    def get_stream(self, stream_id: str) -> Optional[ReactiveStream]:
+        """Get an existing reactive stream by ID.
 
-        for i in range(5):
-            await asyncio.sleep(0.5)
-            element.content += f"Chunk {i + 1} for stream {stream_id}... "
-            element.update()
-        element.content += f"\nStream {stream_id} finished."
-        element.update()
-        if stream_id in self.active_streams:  # Check if not stopped
-            del self.active_streams[stream_id]
-        logger.info(f"Simulated stream {stream_id} finished and unbound.")
-        # -----------------------------------------------------
+        Args:
+            stream_id: The ID of the stream to retrieve.
+
+        Returns:
+            The ReactiveStream instance if found, otherwise None.
+        """
+        stream = self.active_streams.get(stream_id)
+        if not stream:
+            logger.warning(
+                f"Attempted to get non-existent stream with ID: {stream_id}",
+                extra={"stream_id": stream_id},
+            )
+        return stream
+
+    @trace
+    def get_current_stream(self) -> Optional[ReactiveStream]:
+        """Get the most recently created reactive stream.
+
+        Returns:
+            The most recent ReactiveStream instance, or None if no streams have been created.
+        """
+        if self._current_stream_id:
+            return self.get_stream(self._current_stream_id)
+        logger.debug("No current stream ID available.")
+        return None
+
+    @trace
+    def stop_stream(self, stream_id: str) -> None:
+        """Stop and remove a specific reactive stream.
+
+        Completes the stream, allowing subscribers to perform cleanup,
+        and removes it from the active streams dictionary.
+
+        Args:
+            stream_id: The ID of the stream to stop.
+        """
+        if stream_id in self.active_streams:
+            logger.info(
+                f"Stopping and removing stream with ID: {stream_id}",
+                extra={"stream_id": stream_id},
+            )
+            stream = self.active_streams.pop(stream_id)  # Remove from dict first
+            stream.complete()  # Signal completion to subscribers
+            if self._current_stream_id == stream_id:
+                self._current_stream_id = None  # Clear current if it was stopped
+        else:
+            logger.warning(
+                f"Attempted to stop non-existent stream with ID: {stream_id}",
+                extra={"stream_id": stream_id},
+            )
 
     @trace
     def stop_all_streams(self) -> None:
-        """Requests stopping all active LLM streams."""
-        logger.info("Requesting to stop all active streams.")
-        # Interact with the StreamController in the state
-        if hasattr(self.state, "stream_controller") and self.state.stream_controller:
-            self.state.stream_controller.request_stop()
-            # Optionally, add logic here to immediately clear UI elements or show a message
-            for element in self.active_streams.values():
-                element.content += "\n\n**Stopping stream...**"
-                element.update()
-            self.active_streams.clear()  # Clear active streams as they are being stopped
-            logger.info("Stop request sent to StreamController.")
-        else:
-            logger.warning("StreamController not found in state. Cannot stop streams.")
+        """Stop all active reactive streams and request cancellation via StreamController.
 
-    # Add other stream management methods if needed (e.g., stop_specific_stream)
+        This method signals the StreamController to cancel underlying tasks
+        and completes all managed ReactiveStreams.
+        """
+        logger.info("Requesting stop for all active streams via StreamController.")
+        # Request cancellation of underlying tasks first
+        self.stream_controller.request_stop()
+
+        # Then complete all reactive streams
+        # Iterate over keys to avoid issues with modifying dict during iteration
+        stream_ids = list(self.active_streams.keys())
+        for stream_id in stream_ids:
+            self.stop_stream(stream_id)  # Use stop_stream for consistent cleanup
+
+        logger.info("All active reactive streams have been completed.")
+        self._current_stream_id = None  # Reset current stream ID
+
+    # Note: Removed bind_to_ui_element method. UI binding is now the responsibility
+    # of the UI components themselves, which will get the stream using get_stream()
+    # and subscribe to it.

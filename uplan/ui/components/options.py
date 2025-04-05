@@ -207,11 +207,17 @@ def create_options(
             # Re-define helpers to use services
 
             async def connect_to_stream(stream_id: str, operation_type: str):
-                """Connect to a stream by ID and delegate UI creation/binding to StreamService."""
+                """Connects a stream to a new UI element for display.
+
+                Retrieves the stream from StreamService and subscribes a new
+                markdown element in the designated container to display its content.
+
+                Args:
+                    stream_id: The ID of the stream to connect.
+                    operation_type: The type of operation (used for logging/display).
+                """
                 storage = getattr(ui.page, "_storage", {})
-                stream_display_container = storage.get(
-                    "stream_display"
-                )  # Get the container
+                stream_display_container = storage.get("stream_display")
 
                 if not stream_display_container:
                     logger.error("Stream display container not found in page storage.")
@@ -222,23 +228,49 @@ def create_options(
                     ui.notify("Streaming service is unavailable.", type="negative")
                     return
 
-                # Delegate UI creation and binding to the StreamService
-                # Assumes StreamService has a method like create_and_bind_stream_ui
-                try:
-                    await stream_service.create_and_bind_stream_ui(
-                        stream_id=stream_id,
-                        operation_type=operation_type,
-                        container=stream_display_container,
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Error calling stream_service.create_and_bind_stream_ui: {e}",
-                        exc_info=True,
-                    )
+                stream = stream_service.get_stream(stream_id)
+                if not stream:
+                    logger.error(f"Stream {stream_id} not found in StreamService.")
                     ui.notify(
-                        f"Failed to display stream output for {operation_type}.",
-                        type="negative",
+                        f"Failed to find stream for {operation_type}.", type="negative"
                     )
+                    return
+
+                logger.info(f"Connecting UI to stream {stream_id} for {operation_type}")
+
+                # Create the UI element within the container to display the stream
+                # This assumes the container is a NiceGUI element where children can be added.
+                with stream_display_container:
+                    # Consider adding a card or title here if needed
+                    # e.g., with ui.card():
+                    #           ui.label(f"Output for {operation_type} ({stream_id})")
+                    output_markdown = ui.markdown(
+                        ""
+                    ).classes(
+                        "w-full whitespace-pre-wrap font-mono overflow-y-auto flex-grow mb-4"  # Added margin
+                    )
+
+                # Define the update function for the UI element
+                async def update_markdown_content(text: str):
+                    """Updates the markdown element content."""
+                    # Prepend content instead of replacing, or manage accumulation
+                    # output_markdown.content += text # Append
+                    output_markdown.set_content(text)  # Replace content
+                    # logger.debug(f"Updating UI for stream {stream_id}", extra={"stream_id": stream_id}) # Can be noisy
+
+                # Subscribe the update function to the stream
+                stream.subscribe(update_markdown_content)
+
+                # Handle stream completion (optional: update UI to show completion)
+                async def on_complete():
+                    logger.info(
+                        f"Stream {stream_id} completed. UI updates stopped.",
+                        extra={"stream_id": stream_id},
+                    )
+                    # Optionally add a final message to the markdown
+                    # output_markdown.content += "\n\n--- Stream Complete ---"
+
+                stream.on_complete(on_complete)
 
             async def process_operation(operation_type: str, display_name: str) -> None:
                 """Process an operation using LLMService and StreamService.

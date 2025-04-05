@@ -23,7 +23,7 @@ def create_main_layout(state: AppState) -> None:
     apply_global_styles()
 
     # Get the stream service from app services
-    stream_service = app.services.get("stream")
+    # stream_service = app.services.get("stream")
 
     # Create main container
     with ui.element("div").classes("flex w-full h-screen"):
@@ -36,7 +36,7 @@ def create_main_layout(state: AppState) -> None:
             questions_refresh_trigger = create_questions()
 
             # Main content
-            create_content(stream_service)
+            create_content()
 
             # Right sidebar
             create_options(questions_update_trigger=questions_refresh_trigger)

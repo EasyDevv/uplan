@@ -43,6 +43,24 @@ class AppState:
     llm_response: Dict = field(default_factory=dict)
 
     # UI state data
+    def to_dict(self) -> dict:
+        """Convert the AppState instance to a dictionary."""
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "category": self.category,
+            "input_path": self.input_path,
+            "output_path": self.output_path,
+            "max_retries": self.max_retries,
+            "operation_type": self.operation_type,
+            "processing": self.processing,
+            "error_message": self.error_message,
+            "current_task": self.current_task,
+            "stream_controller": self.stream_controller,
+            "llm_response": self.llm_response,
+            "form_data": self.form_data,
+        }
+
     form_data: Dict = field(default_factory=dict)
 
     # Event callbacks

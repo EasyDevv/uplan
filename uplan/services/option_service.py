@@ -4,11 +4,11 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
-from uplan.config import INPUT_BASE_DIR  # Import config constant
+from uplan.config import INPUT_BASE_DIR, OUTPUT_BASE_DIR  # Import config constants
 from uplan.utils.logging import get_logger, trace
 
-# Assuming model_info.json is the source of truth for models
-MODEL_INFO_PATH = Path("input/model_info.json")
+# Define path relative to the configured input directory
+MODEL_INFO_PATH = INPUT_BASE_DIR / "model_info.json"
 
 logger = get_logger()
 
@@ -120,9 +120,9 @@ class OptionService:
         default_category = (
             "dev" if "dev" in categories else (categories[0] if categories else None)
         )
-        logger.debug(
-            f"Default category selected: {default_category} from list: {categories}"
-        )
+        # logger.debug(
+        #     f"Default category selected: {default_category} from list: {categories}"
+        # )
         return default_category
 
     @trace
@@ -134,12 +134,12 @@ class OptionService:
             logger.warning("No category provided, returning base input path.")
             return str(input_base_path)
         path = str(input_base_path / category)
-        logger.debug(f"Input path for category '{category}': {path}")
+        # logger.debug(f"Input path for category '{category}': {path}")
         return path
 
     @trace
     def get_default_output_path(self, output_base_path: Path) -> str:
         """Returns the default output path string."""
         path = str(output_base_path)
-        logger.debug(f"Default output path: {path}")
+        # logger.debug(f"Default output path: {path}")
         return path
