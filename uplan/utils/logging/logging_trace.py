@@ -219,8 +219,19 @@ def _log_error(
     location: str,
     depth: int,
 ):
-    """함수 실행 중 발생한 오류 로그를 기록합니다."""
+    """Log errors that occur during function execution."""
     try:
+        # Extract the innermost traceback frame (where the error actually occurred)
+        import traceback
+
+        tb = exception.__traceback__
+        extracted_tb = traceback.extract_tb(tb)
+        if extracted_tb:
+            last_frame = extracted_tb[-1]
+            precise_location = f"{last_frame.filename}:{last_frame.lineno}"
+        else:
+            precise_location = location  # fallback to provided location if no traceback
+
         context = LogContext(
             event_type="error",
             function_name=func_name,
@@ -230,15 +241,15 @@ def _log_error(
             execution_time_seconds=elapsed,
             error_type=type(exception).__name__,
             error_message=str(exception),
-            details={"call_args": call_args, "location": location},
+            details={"call_args": call_args, "location": precise_location},
             depth=depth,
         )
         sync_async = "async" if is_async else "sync"
         name = f"{class_name}.{func_name}" if class_name else func_name
         depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
-        depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
+        depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # colorized depth
         colored_name = f"[bold {depth_color}]{name}[/]"
-        colored_location = f"[{depth_color}]{location}[/]"
+        colored_location = f"[{depth_color}]{precise_location}[/]"
         logged_args = {k: v for k, v in call_args.items() if k != "self"}
         indent = "".join(
             f"[{DEPTH_COLORS[i % len(DEPTH_COLORS)]}]    [/]" for i in range(depth)

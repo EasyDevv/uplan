@@ -1,7 +1,8 @@
 """Options panel component for the right sidebar."""
 
 from pathlib import Path
-from typing import Optional, Callable  # Removed List, added imports for services
+from typing import Optional, Callable
+from venv import logger  # Removed List, added imports for services
 
 from nicegui import ui, app
 
@@ -234,6 +235,7 @@ def create_options(
                 # Subscribe the update function to the stream
                 stream.subscribe(update_markdown_content)
 
+            @trace
             async def process_operation(operation_type: str, display_name: str) -> None:
                 """Process an operation using LLMService and StreamService.
 
@@ -268,12 +270,14 @@ def create_options(
                     state.max_retries = retry_input.value
                     state.operation_type = operation_type  # Set the specific operation
 
+                    # logger.warning(
+                    #     state.input_path,
+                    # )
+
                     # Call LLMService to process the request (which uses the state)
                     stream_id = await llm_service.process_request()
 
                     if stream_id:
-                        # logger.info(f"Stream ID received: {stream_id}")
-                        # Connect the stream to the UI
                         await connect_to_stream(stream_id, display_name)
                     else:
                         raise RuntimeError("No stream ID returned from LLM service.")

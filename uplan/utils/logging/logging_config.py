@@ -18,4 +18,5 @@ CONSOLE_LOG_LEVEL = logging.DEBUG
 JSON_LOG_LEVEL = logging.DEBUG
 LOGGER_NAME = "tracer"
 
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+if not LOG_DIR.exists():
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
