@@ -65,16 +65,16 @@ class LogContext(BaseModel):
 # --- 색상 팔레트 ---
 # 다양한 색상을 정의하여 깊이에 따라 순환하도록 함
 DEPTH_COLORS: List[str] = [
-    "bright_blue",
-    "bright_magenta",
-    "bright_cyan",
-    "bright_green",
-    "bright_yellow",
-    "blue",
-    "magenta",
-    "cyan",
-    "green",
-    "yellow",
+    "#b9e97c",  # green (less saturated)
+    "#f0e6a8",  # yellow (less saturated)
+    "#fdbb6f",  # orange (less saturated)
+    "#f58fa8",  # pink (less saturated)
+    "#99d4f0",  # cyan (less saturated)
+    "#c1a6ff",  # purple (less saturated)
+    "#f58f8f",  # red (less saturated)
+    "#f0e6a8",  # yellow (less saturated)
+    "#b9e97c",  # green (less saturated)
+    "#99d4f0",  # cyan (less saturated)
 ]
 
 
@@ -113,17 +113,19 @@ def _log_entry(
             details={"call_args": call_args},
             depth=depth,
         )
-        sync_async, color = ("async", "cyan") if is_async else ("sync", "green")
+        sync_async = "async" if is_async else "sync"
         name = f"{class_name}.{func_name}" if class_name else func_name
         # Filter out 'self' argument for logging if it exists
         logged_args = {k: v for k, v in call_args.items() if k != "self"}
         # Construct multi-line log message using f-string
         depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
         depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
+        colored_name = f"[bold {depth_color}]{name}[/]"
+        colored_location = f"[[{depth_color}]{location}[/]]"
         log_message = (
-            f"❇️ {depth_str} Entering {sync_async} [bold {color}]{name}[/]" + "\n"
-            f"Location: {location}" + "\n"
-            f"Args: {json.dumps(logged_args, indent=2)}" + "\n"
+            f"❇️ {depth_str} Entering {sync_async} {colored_name}" + "\n"
+            f"Location: {colored_location}" + "\n"
+            f"Args: [{depth_color}]{json.dumps(logged_args, indent=2)}[/]" + "\n"
         )
         logger.log(
             level,
@@ -168,11 +170,14 @@ def _log_exit(
             # details=details,
             depth=depth,
         )
-        sync_async, color = ("async", "cyan") if is_async else ("sync", "green")
+        sync_async = "async" if is_async else "sync"
         name = f"{class_name}.{func_name}" if class_name else func_name
         depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
         depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
-        log_message = f"☑️ {depth_str} Exited {sync_async} [bold {color}]{name}[/] in {elapsed:.4f}s"
+        colored_name = f"[bold {depth_color}]{name}[/]"
+        log_message = (
+            f"☑️ {depth_str} Exited {sync_async} {colored_name} in {elapsed:.4f}s"
+        )
         logger.log(
             level,
             log_message,
@@ -220,10 +225,14 @@ def _log_error(
         name = f"{class_name}.{func_name}" if class_name else func_name
         depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
         depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
+        colored_name = f"[bold {depth_color}]{name}[/]"
+        colored_location = f"[[{depth_color}]{location}[/]]"
+        logged_args = {k: v for k, v in call_args.items() if k != "self"}
         log_message = (
-            f"❌{depth_str} Error in {sync_async} [bold red]{name}[/] after {elapsed:.4f}s\n"
-            f"Location: {location}\n"
-            f"[red]{type(exception).__name__}: {exception}[/]" + "\n"
+            f"❌{depth_str} Error in {sync_async} {colored_name} after {elapsed:.4f}s\n"
+            f"Location: {colored_location}\n"
+            f"Args: {json.dumps(logged_args, indent=2)}\n"
+            f"[red]{type(exception).__name__}: {exception}[/]\n"
         )
         logger.error(
             log_message,

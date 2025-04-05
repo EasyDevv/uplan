@@ -234,15 +234,6 @@ def create_options(
                 # Subscribe the update function to the stream
                 stream.subscribe(update_markdown_content)
 
-                # Handle stream completion (optional: update UI to show completion)
-                async def on_complete():
-                    pass
-
-                # Optionally add a final message to the markdown
-                # output_markdown.content += "\n\n--- Stream Complete ---"
-
-                stream.on_complete(on_complete)
-
             async def process_operation(operation_type: str, display_name: str) -> None:
                 """Process an operation using LLMService and StreamService.
 

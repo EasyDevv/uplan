@@ -52,6 +52,10 @@ def create_content() -> None:
         storage_key = "stream_display_container"
         if not hasattr(app, "custom_storage"):
             app.custom_storage = {}
+        # Also store in ui.page._storage for options.py compatibility
+        if not hasattr(ui.page, "_storage"):
+            ui.page._storage = {}
+        ui.page._storage["stream_display"] = content_container
         app.custom_storage[storage_key] = content_container
 
         logger.debug(

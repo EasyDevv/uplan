@@ -12,6 +12,7 @@ from .logging_config import (
     JSON_LOG_LEVEL,
     LOG_DIR,
     LOGGER_NAME,
+    LOG_DETAIL,
 )
 from .logging_formatter import JsonFormatter
 
@@ -42,14 +43,15 @@ def setup_logging() -> logging.Logger:
     logger.setLevel(effective_level)
 
     # 콘솔 핸들러 설정 (RichHandler 사용)
+    log_detail_bool = LOG_DETAIL == "true"
     console_handler = RichHandler(
         level=CONSOLE_LOG_LEVEL,
         rich_tracebacks=True,  # Rich 트레이스백 활성화
         markup=True,  # Rich 마크업 활성화
-        show_path=True,  # 로그 메시지에 파일 경로 표시
+        show_path=log_detail_bool,  # 환경설정에 따라 파일 경로 표시
         enable_link_path=True,  # 파일 경로에 터미널 링크 활성화 (터미널 지원 시)
         show_level=True,  # 로그 레벨 표시
-        show_time=True,  # 시간 표시
+        show_time=log_detail_bool,  # 환경설정에 따라 시간 표시
         log_time_format="[%Y-%m-%d %H:%M:%S.%f]",  # 시간 형식 지정
         tracebacks_show_locals=False,  # 트레이스백에 지역 변수 표시 안 함
     )

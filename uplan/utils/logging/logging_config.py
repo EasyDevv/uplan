@@ -1,5 +1,12 @@
 import logging
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# --- 환경 변수 로드 ---
+LOG_DETAIL = os.getenv("LOG_DETAIL", "false").lower()
 
 # --- 설정 ---
 DEFAULT_LOG_LEVEL = logging.DEBUG  # 기본 트레이스 레벨을 DEBUG로 변경
