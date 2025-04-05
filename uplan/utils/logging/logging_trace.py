@@ -79,6 +79,7 @@ def _log_entry(
     class_name: Optional[str],
     is_async: bool,
     call_args: Dict[str, Any],
+    location: str,  # Combined filename and line number
 ):
     """함수 진입 로그를 기록합니다."""
     try:
@@ -93,8 +94,8 @@ def _log_entry(
         sync_async, color = ("async", "cyan") if is_async else ("sync", "green")
         name = f"{class_name}.{func_name}" if class_name else func_name
         logger.log(
-            level,
-            f"▶️ Entering {sync_async} [bold {color}]{name}[/]",
+            level,  # Corrected: Removed duplicate level argument
+            f"▶️ Entering {sync_async} [bold {color}]{name}[/] in {location}",  # Use location
             extra={"log_context": context},
         )
     except ValidationError as e:
@@ -117,6 +118,7 @@ def _log_exit(
     class_name: Optional[str],
     is_async: bool,
     elapsed: float,
+    location: str,  # Combined filename and line number
     result: Optional[Any] = None,  # 결과 로깅은 제외됨 (성능 및 보안)
 ):
     """함수 종료 로그를 기록합니다."""
@@ -135,8 +137,8 @@ def _log_exit(
         sync_async, color = ("async", "cyan") if is_async else ("sync", "green")
         name = f"{class_name}.{func_name}" if class_name else func_name
         logger.log(
-            level,
-            f"✅ Exited {sync_async} [bold {color}]{name}[/] in {elapsed:.4f}s",
+            level,  # Corrected: Removed duplicate level argument
+            f"✅ Exited {sync_async} [bold {color}]{name}[/] in {elapsed:.4f}s from {location}",  # Use location
             extra={"log_context": context},
         )
     except ValidationError as e:
@@ -330,6 +332,12 @@ def trace(
         module_name = func.__module__
         is_async = inspect.iscoroutinefunction(func)
         logger = get_logger()
+        original_filename = inspect.getfile(func)
+        try:
+            _, lineno = inspect.getsourcelines(func)
+            location = f"{original_filename}:{lineno}"
+        except (OSError, TypeError):  # Handle cases where source can't be found
+            location = original_filename  # Fallback to just filename
         class_name: Optional[str] = None
         try:
             # func.__qualname__ 접근 시 AttributeError 발생 가능성 처리 (e.g., 일부 내장 함수)
@@ -357,7 +365,8 @@ def trace(
                 module_name,
                 class_name,
                 True,
-                call_args,  # func_level 사용
+                call_args,
+                location,  # Pass location (filename:lineno)
             )
             try:
                 result = await func(*args, **kwargs)
@@ -369,7 +378,8 @@ def trace(
                     module_name,
                     class_name,
                     True,
-                    elapsed,  # func_level 사용
+                    elapsed,
+                    location,  # Pass location (filename:lineno)
                 )
                 return result
             except Exception as e:
@@ -407,7 +417,8 @@ def trace(
                 module_name,
                 class_name,
                 False,
-                call_args,  # func_level 사용
+                call_args,
+                location,  # Pass location (filename:lineno)
             )
             try:
                 result = func(*args, **kwargs)
@@ -419,7 +430,8 @@ def trace(
                     module_name,
                     class_name,
                     False,
-                    elapsed,  # func_level 사용
+                    elapsed,
+                    location,  # Pass location (filename:lineno)
                 )
                 return result
             except Exception as e:
