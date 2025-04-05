@@ -120,9 +120,11 @@ def _log_entry(
         # Construct multi-line log message using f-string
         depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
         depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
-        log_message = f"""❇️ {depth_str} Entering {sync_async} [bold {color}]{name}[/]
-  Location: {location}
-  Args: {logged_args}"""
+        log_message = (
+            f"❇️ {depth_str} Entering {sync_async} [bold {color}]{name}[/]" + "\n"
+            f"Location: {location}" + "\n"
+            f"Args: {json.dumps(logged_args, indent=2)}" + "\n"
+        )
         logger.log(
             level,
             log_message,  # Log the indented content without braces
@@ -197,6 +199,7 @@ def _log_error(
     elapsed: float,
     exception: Exception,
     call_args: Dict[str, Any],
+    location: str,
     depth: int,
 ):
     """함수 실행 중 발생한 오류 로그를 기록합니다."""
@@ -210,14 +213,18 @@ def _log_error(
             execution_time_seconds=elapsed,
             error_type=type(exception).__name__,
             error_message=str(exception),
-            details={"call_args": call_args},
+            details={"call_args": call_args, "location": location},
             depth=depth,
         )
         sync_async = "async" if is_async else "sync"
         name = f"{class_name}.{func_name}" if class_name else func_name
         depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
         depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
-        log_message = f"❌ {depth_str} Error in {sync_async} [bold red]{name}[/] after {elapsed:.4f}s: [red]{type(exception).__name__}: {exception}[/]"
+        log_message = (
+            f"❌{depth_str} Error in {sync_async} [bold red]{name}[/] after {elapsed:.4f}s\n"
+            f"Location: {location}\n"
+            f"[red]{type(exception).__name__}: {exception}[/]" + "\n"
+        )
         logger.error(
             log_message,
             # exc_info=True is implicit inside an except block
@@ -454,6 +461,7 @@ def trace(
                     elapsed,
                     e,
                     call_args,
+                    location,
                     current_depth,
                 )
                 raise  # Re-raise the original exception
@@ -518,6 +526,7 @@ def trace(
                     elapsed,
                     e,
                     call_args,
+                    location,
                     current_depth,
                 )
                 raise  # Re-raise the original exception

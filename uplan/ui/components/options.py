@@ -6,7 +6,7 @@ from typing import Optional, Callable  # Removed List, added imports for service
 from nicegui import ui, app
 
 from uplan.config import INPUT_BASE_DIR, OUTPUT_BASE_DIR
-from uplan.utils.logging import get_logger, trace
+from uplan.utils.logging import trace
 from uplan.ui.state import AppState
 
 # Import services
@@ -15,7 +15,6 @@ from uplan.services.stream_service import StreamService
 from uplan.services.option_service import OptionService
 
 
-logger = get_logger()
 # Service instances will be created/retrieved here
 
 
@@ -36,13 +35,9 @@ def create_options(
     stream_service: StreamService = app.services.get("stream")
 
     if not llm_service or not stream_service:
-        logger.error(
+        raise RuntimeError(
             "LLMService or StreamService not found in app.services. UI might not function correctly."
         )
-        # Optionally, raise an error or display a notification
-        # For now, we'll proceed, but operations requiring these services will fail.
-        # llm_service = LLMService(state) # Fallback instantiation if needed
-        # stream_service = StreamService(state) # Fallback instantiation if needed
 
     # Initialize storage if needed
     if not hasattr(ui.page, "_storage"):
@@ -78,9 +73,6 @@ def create_options(
                     else:
                         # If the value is valid, ensure the UI reflects the potentially updated options list
                         model_select.update()
-                    logger.debug(
-                        f"Provider changed to {selected_provider}. Models updated: {models}. Selected: {model_select.value}"
-                    )
 
                 # --- Provider Selection ---
                 providers = option_service.get_providers()
@@ -139,9 +131,6 @@ def create_options(
 
                     # Trigger the questions UI update if the callback is provided
                     if questions_update_trigger:
-                        logger.debug(
-                            f"Category changed to {new_category}, triggering questions update."
-                        )
                         questions_update_trigger(new_category)  # Pass the new category
 
                 category_select = (
@@ -196,15 +185,6 @@ def create_options(
                     category
                 )  # Use service
                 input_folder_display.set_value(new_path)
-                logger.debug(f"Input folder display updated to: {new_path}")
-
-            # Removed unused handle_category_change function as we now use a direct callback
-
-            # The on_change handler is now directly attached to the ui.select definition above.
-            # The category_selected function and the .on() binding below are no longer needed.
-
-            # connect_to_stream and process_operation logic moved to services
-            # Re-define helpers to use services
 
             async def connect_to_stream(stream_id: str, operation_type: str):
                 """Connects a stream to a new UI element for display.
@@ -220,26 +200,17 @@ def create_options(
                 stream_display_container = storage.get("stream_display")
 
                 if not stream_display_container:
-                    logger.error(
-                        "Stream display container not found in page storage.",
-                        exc_info=True,
+                    raise RuntimeError(
+                        "Stream display container not found in page storage."
                     )
-                    ui.notify("Stream display area not found", type="warning")
-                    return
                 if not stream_service:
-                    logger.error("StreamService not available.")
-                    ui.notify("Streaming service is unavailable.", type="negative")
-                    return
+                    raise RuntimeError("Streaming service is unavailable.")
 
                 stream = stream_service.get_stream(stream_id)
                 if not stream:
-                    logger.error(f"Stream {stream_id} not found in StreamService.")
-                    ui.notify(
-                        f"Failed to find stream for {operation_type}.", type="negative"
+                    raise RuntimeError(
+                        f"Stream {stream_id} not found in StreamService."
                     )
-                    return
-
-                # logger.info(f"Connecting UI to stream {stream_id} for {operation_type}")
 
                 # Create the UI element within the container to display the stream
                 # This assumes the container is a NiceGUI element where children can be added.
@@ -259,19 +230,16 @@ def create_options(
                     # Prepend content instead of replacing, or manage accumulation
                     # output_markdown.content += text # Append
                     output_markdown.set_content(text)  # Replace content
-                    # logger.debug(f"Updating UI for stream {stream_id}", extra={"stream_id": stream_id}) # Can be noisy
 
                 # Subscribe the update function to the stream
                 stream.subscribe(update_markdown_content)
 
                 # Handle stream completion (optional: update UI to show completion)
                 async def on_complete():
-                    logger.info(
-                        f"Stream {stream_id} completed. UI updates stopped.",
-                        extra={"stream_id": stream_id},
-                    )
-                    # Optionally add a final message to the markdown
-                    # output_markdown.content += "\n\n--- Stream Complete ---"
+                    pass
+
+                # Optionally add a final message to the markdown
+                # output_markdown.content += "\n\n--- Stream Complete ---"
 
                 stream.on_complete(on_complete)
 
@@ -283,15 +251,16 @@ def create_options(
                     display_name: The display name for the UI.
                 """
                 if not llm_service or not stream_service:
-                    logger.error("LLM or Stream service not available for processing.")
-                    ui.notify("Required services are unavailable.", type="negative")
-                    return
+                    raise RuntimeError(
+                        "LLM or Stream service not available for processing."
+                    )
 
-                # logger.info(
-                #     "Processing operation",
-                #     extra={
-                #         "operation_type": operation_type,
-                #         "display_name": display_name,
+                    # logger.info(
+                    #     "Processing operation",
+                    #     extra={
+                    #         "operation_type": operation_type,
+                    #         "display_name": display_name,
+                    pass
                 #     },
                 # )
                 try:
@@ -316,18 +285,12 @@ def create_options(
                         # Connect the stream to the UI
                         await connect_to_stream(stream_id, display_name)
                     else:
-                        logger.error("No stream ID returned from LLM service.")
-                        ui.notify(
-                            "Failed to initiate processing stream.", type="negative"
-                        )
+                        raise RuntimeError("No stream ID returned from LLM service.")
 
                 except Exception as e:
-                    logger.error(
-                        f"Error during '{display_name}' operation: {e}", exc_info=True
-                    )
-                    ui.notify(
-                        f"Error processing {display_name}: {str(e)}", type="negative"
-                    )
+                    raise RuntimeError(
+                        f"Error during '{display_name}' operation: {e}"
+                    ) from e
                 finally:
                     loading_indicator.classes(add="hidden")  # Hide spinner
 
@@ -346,13 +309,8 @@ def create_options(
             def on_stop_click() -> None:
                 """Handle stop button click using StreamService."""
                 if not stream_service:
-                    logger.error(
-                        "StreamService not available to stop streams.", exc_info=True
-                    )
-                    ui.notify("Streaming service is unavailable.", type="negative")
-                    return
+                    raise RuntimeError("StreamService not available to stop streams.")
 
-                logger.info("Stop button clicked.")
                 # No need to get state instance here, service handles it
                 stream_service.stop_all_streams()
                 ui.notify("Stopping LLM processing...", type="info")

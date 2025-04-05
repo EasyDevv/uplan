@@ -99,6 +99,9 @@ class JsonFormatter(logging.Formatter):
         """
         log_entry: Dict[str, Any] = {"timestamp": self.formatTime(record)}
 
+        # Always include source location info
+        log_entry["location"] = f"{record.pathname}:{record.lineno}"
+
         # fmt_keys에 따라 기본 로그 속성 추가
         for key, val_key in self.fmt_keys.items():
             val = getattr(record, val_key, None)
