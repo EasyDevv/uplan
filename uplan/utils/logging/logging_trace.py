@@ -93,9 +93,11 @@ def _log_entry(
         )
         sync_async, color = ("async", "cyan") if is_async else ("sync", "green")
         name = f"{class_name}.{func_name}" if class_name else func_name
+        # Filter out 'self' argument for logging if it exists
+        logged_args = {k: v for k, v in call_args.items() if k != "self"}
         logger.log(
-            level,  # Corrected: Removed duplicate level argument
-            f"▶️ Entering {sync_async} [bold {color}]{name}[/] in {location}",  # Use location
+            level,
+            f"❇️ Entering {sync_async} [bold {color}]{name}[/] in\n{location} with args: {logged_args}\n",
             extra={"log_context": context},
         )
     except ValidationError as e:
@@ -138,7 +140,7 @@ def _log_exit(
         name = f"{class_name}.{func_name}" if class_name else func_name
         logger.log(
             level,  # Corrected: Removed duplicate level argument
-            f"✅ Exited {sync_async} [bold {color}]{name}[/] in {elapsed:.4f}s from {location}",  # Use location
+            f"☑️ Exited {sync_async} [bold {color}]{name}[/] in {elapsed:.4f}",  # Use location
             extra={"log_context": context},
         )
     except ValidationError as e:
