@@ -122,10 +122,18 @@ def _log_entry(
         depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
         colored_name = f"[bold {depth_color}]{name}[/]"
         colored_location = f"[[{depth_color}]{location}[/]]"
+        indent = f"[{depth_color}]" + ("│   " * depth) + "[/]"
+        entry_prefix = f"{indent}[{depth_color}]├──[/] "
+        child_indent = f"{indent}[{depth_color}]│   [/]"
+        # Pretty-print JSON args and indent each line
+        pretty_args = json.dumps(logged_args, indent=2)
+        pretty_args_lines = pretty_args.splitlines()
+        indented_args = "\n".join(f"{child_indent}{line}" for line in pretty_args_lines)
         log_message = (
-            f"❇️ {depth_str} Entering {sync_async} {colored_name}" + "\n"
-            f"Location: {colored_location}" + "\n"
-            f"Args: [{depth_color}]{json.dumps(logged_args, indent=2)}[/]" + "\n"
+            f"{entry_prefix}{depth_str} Entering {sync_async} {colored_name}\n"
+            f"{child_indent}Location: {colored_location}\n"
+            f"{child_indent}Args:\n"
+            f"{indented_args}"
         )
         logger.log(
             level,
@@ -175,9 +183,9 @@ def _log_exit(
         depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
         depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
         colored_name = f"[bold {depth_color}]{name}[/]"
-        log_message = (
-            f"☑️ {depth_str} Exited {sync_async} {colored_name} in {elapsed:.4f}s"
-        )
+        indent = f"[{depth_color}]" + ("│   " * depth) + "[/]"
+        exit_prefix = f"{indent}[{depth_color}]└──[/] "
+        log_message = f"{exit_prefix}{depth_str} Exited {sync_async} {colored_name} in {elapsed:.4f}s"
         logger.log(
             level,
             log_message,
@@ -228,11 +236,18 @@ def _log_error(
         colored_name = f"[bold {depth_color}]{name}[/]"
         colored_location = f"[[{depth_color}]{location}[/]]"
         logged_args = {k: v for k, v in call_args.items() if k != "self"}
+        indent = f"[{depth_color}]" + ("    " * depth) + "[/]"
+        error_prefix = f"{indent}[{depth_color}]└──[/] "
+        child_indent = f"{indent}[{depth_color}]    [/]"
+        pretty_args = json.dumps(logged_args, indent=2)
+        pretty_args_lines = pretty_args.splitlines()
+        indented_args = "\n".join(f"{child_indent}{line}" for line in pretty_args_lines)
         log_message = (
-            f"❌{depth_str} Error in {sync_async} {colored_name} after {elapsed:.4f}s\n"
-            f"Location: {colored_location}\n"
-            f"Args: {json.dumps(logged_args, indent=2)}\n"
-            f"[red]{type(exception).__name__}: {exception}[/]\n"
+            f"{error_prefix}{depth_str}❌ Error {sync_async} {colored_name} after {elapsed:.4f}s\n"
+            f"{child_indent}Location: {colored_location}\n"
+            f"{child_indent}Args:\n"
+            f"[{depth_color}]{indented_args}[/]\n"
+            f"{child_indent}[red]{type(exception).__name__}: {exception}[/]\n"
         )
         logger.error(
             log_message,
