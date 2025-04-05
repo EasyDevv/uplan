@@ -62,10 +62,10 @@ class StreamService:
             # Complete the existing stream cleanly
             self.stop_stream(stream_id)  # stop_stream handles removal from dict
 
-        logger.info(
-            f"Creating new reactive stream with ID: {stream_id}",
-            extra={"stream_id": stream_id},
-        )
+        # logger.info(
+        #     f"Creating new reactive stream with ID: {stream_id}",
+        #     extra={"stream_id": stream_id},
+        # )
         stream = ReactiveStream()
         self.active_streams[stream_id] = stream
         self._current_stream_id = stream_id  # Track the latest created stream
@@ -133,7 +133,7 @@ class StreamService:
         This method signals the StreamController to cancel underlying tasks
         and completes all managed ReactiveStreams.
         """
-        logger.info("Requesting stop for all active streams via StreamController.")
+        # logger.info("Requesting stop for all active streams via StreamController.")
         # Request cancellation of underlying tasks first
         self.stream_controller.request_stop()
 

@@ -150,11 +150,15 @@ class JsonFormatter(logging.Formatter):
 
         # 예외 정보 처리
         if record.exc_info:
-            exc_type, exc_value, _ = record.exc_info
+            # formatException은 None이 아닌 exc_info 튜플을 기대합니다.
+            traceback_str = self.formatException(record.exc_info)
+            exc_type, exc_value, _ = (
+                record.exc_info
+            )  # Keep original extraction for type/message
             log_entry["exception"] = {
                 "type": exc_type.__name__ if exc_type else None,
                 "message": str(exc_value) if exc_value else None,
-                # 필요시 traceback 추가 가능
+                "traceback": traceback_str,  # 항상 트레이스백 추가
             }
         elif record.exc_text:  # exc_info가 없을 때 exc_text 사용
             log_entry["exception_text"] = record.exc_text

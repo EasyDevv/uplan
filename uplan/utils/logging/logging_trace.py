@@ -4,9 +4,11 @@ import functools
 import inspect
 import logging
 import time
+import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type, Union, overload
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, overload
+from rich.color import Color  # 색상 추가
 
 # Pydantic import
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -19,6 +21,7 @@ from .logging_setup import get_logger
 current_function_context = contextvars.ContextVar[Optional[str]](
     "current_function_context", default=None
 )
+call_depth = contextvars.ContextVar[int]("call_depth", default=0)  # 추적 깊이
 
 
 # --- Pydantic 모델 ---
@@ -33,7 +36,8 @@ class LogContext(BaseModel):
     execution_time_seconds: Optional[float] = Field(None)
     error_type: Optional[str] = Field(None)
     error_message: Optional[str] = Field(None)
-    details: Optional[Dict[str, Any]] = Field(None)
+    details: Optional[Dict[str, Any]] = Field(default=None)
+    depth: Optional[int] = Field(None)  # 호출 깊이 추가
 
     class Config:
         # Pydantic v1 호환성 (필요시 제거 또는 v2 방식으로 변경)
@@ -58,6 +62,22 @@ class LogContext(BaseModel):
         return v
 
 
+# --- 색상 팔레트 ---
+# 다양한 색상을 정의하여 깊이에 따라 순환하도록 함
+DEPTH_COLORS: List[str] = [
+    "bright_blue",
+    "bright_magenta",
+    "bright_cyan",
+    "bright_green",
+    "bright_yellow",
+    "blue",
+    "magenta",
+    "cyan",
+    "green",
+    "yellow",
+]
+
+
 # --- 로깅 데코레이터 헬퍼 함수 ---
 def _format_call_args(func: Callable, args: tuple, kwargs: dict) -> Dict[str, Any]:
     """함수 호출 인자를 repr 문자열 딕셔너리로 포맷합니다."""
@@ -79,7 +99,8 @@ def _log_entry(
     class_name: Optional[str],
     is_async: bool,
     call_args: Dict[str, Any],
-    location: str,  # Combined filename and line number
+    location: str,
+    depth: int,
 ):
     """함수 진입 로그를 기록합니다."""
     try:
@@ -90,14 +111,21 @@ def _log_entry(
             class_name=class_name,
             is_async=is_async,
             details={"call_args": call_args},
+            depth=depth,
         )
         sync_async, color = ("async", "cyan") if is_async else ("sync", "green")
         name = f"{class_name}.{func_name}" if class_name else func_name
         # Filter out 'self' argument for logging if it exists
         logged_args = {k: v for k, v in call_args.items() if k != "self"}
+        # Construct multi-line log message using f-string
+        depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
+        depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
+        log_message = f"""❇️ {depth_str} Entering {sync_async} [bold {color}]{name}[/]
+  Location: {location}
+  Args: {logged_args}"""
         logger.log(
             level,
-            f"❇️ Entering {sync_async} [bold {color}]{name}[/] in\n{location} with args: {logged_args}\n",
+            log_message,  # Log the indented content without braces
             extra={"log_context": context},
         )
     except ValidationError as e:
@@ -120,8 +148,9 @@ def _log_exit(
     class_name: Optional[str],
     is_async: bool,
     elapsed: float,
-    location: str,  # Combined filename and line number
-    result: Optional[Any] = None,  # 결과 로깅은 제외됨 (성능 및 보안)
+    location: str,
+    depth: int,
+    result: Optional[Any] = None,
 ):
     """함수 종료 로그를 기록합니다."""
     try:
@@ -134,13 +163,17 @@ def _log_exit(
             class_name=class_name,
             is_async=is_async,
             execution_time_seconds=elapsed,
-            # details=details, # 결과 미리보기 제거
+            # details=details,
+            depth=depth,
         )
         sync_async, color = ("async", "cyan") if is_async else ("sync", "green")
         name = f"{class_name}.{func_name}" if class_name else func_name
+        depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
+        depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
+        log_message = f"☑️ {depth_str} Exited {sync_async} [bold {color}]{name}[/] in {elapsed:.4f}s"
         logger.log(
-            level,  # Corrected: Removed duplicate level argument
-            f"☑️ Exited {sync_async} [bold {color}]{name}[/] in {elapsed:.4f}",  # Use location
+            level,
+            log_message,
             extra={"log_context": context},
         )
     except ValidationError as e:
@@ -164,6 +197,7 @@ def _log_error(
     elapsed: float,
     exception: Exception,
     call_args: Dict[str, Any],
+    depth: int,
 ):
     """함수 실행 중 발생한 오류 로그를 기록합니다."""
     try:
@@ -176,13 +210,17 @@ def _log_error(
             execution_time_seconds=elapsed,
             error_type=type(exception).__name__,
             error_message=str(exception),
-            details={"call_args": call_args},  # 오류 발생 시 호출 인자 포함
+            details={"call_args": call_args},
+            depth=depth,
         )
         sync_async = "async" if is_async else "sync"
         name = f"{class_name}.{func_name}" if class_name else func_name
+        depth_color = DEPTH_COLORS[depth % len(DEPTH_COLORS)]
+        depth_str = f"[[{depth_color}]Depth:{depth}[/]]"  # 색상 적용
+        log_message = f"❌ {depth_str} Error in {sync_async} [bold red]{name}[/] after {elapsed:.4f}s: [red]{type(exception).__name__}: {exception}[/]"
         logger.error(
-            f"❌ Error in {sync_async} [bold red]{name}[/] after {elapsed:.4f}s: [red]{type(exception).__name__}: {exception}[/]",
-            exc_info=True,  # 트레이스백 포함
+            log_message,
+            # exc_info=True is implicit inside an except block
             extra={"log_context": context},
         )
     except ValidationError as ve:
@@ -191,24 +229,35 @@ def _log_error(
             f"Pydantic validation error on error context for {func_name}: {ve}",
             extra={"function_name": func_name, "class_name": class_name},
         )
+        # Log the validation error itself (without traceback for this specific error)
         logger.error(
-            f"❌ Error in {sync_async} [bold red]{name}[/] after {elapsed:.4f}s: [red]{type(exception).__name__}: {exception}[/] (Context validation failed)",
-            exc_info=True,
+            f"Pydantic validation error on error context for {func_name}: {ve}",
+            exc_info=False,  # Explicitly False for the validation error log
+            extra={"function_name": func_name, "class_name": class_name},
+        )
+        # Log the original error that occurred in the traced function (with traceback)
+        logger.error(
+            f"Original error in [bold red]{name}[/]: {type(exception).__name__}: {exception}",
+            # exc_info=True is implicit inside an except block
             extra={
-                "original_error": repr(exception),
                 "function_name": func_name,
                 "class_name": class_name,
+                "original_error_repr": repr(
+                    exception
+                ),  # Keep original repr for context
             },
         )
     except Exception as e:
-        # 오류 로깅 자체에서 오류 발생 시
+        # Critical error during the error logging process itself
         logger.error(
             f"Critical error while logging error for {func_name}: {e}",
-            exc_info=True,
+            # exc_info=True is implicit inside an except block
             extra={
                 "function_name": func_name,
                 "class_name": class_name,
-                "original_error": repr(exception),
+                "original_error_in_log_error": repr(
+                    exception
+                ),  # Indicate this was the error being logged
             },
         )
 
@@ -350,14 +399,21 @@ def trace(
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            parent_context = current_function_context.get()
+            # --- Context Management ---
+            parent_func_context = current_function_context.get()
             current_ctx_name = f"{class_name}.{func_name}" if class_name else func_name
             full_context = (
-                f"{parent_context} -> {current_ctx_name}"
-                if parent_context
+                f"{parent_func_context} -> {current_ctx_name}"
+                if parent_func_context
                 else current_ctx_name
             )
-            token = current_function_context.set(full_context)
+            token_func_context = current_function_context.set(full_context)
+
+            # --- Depth Management ---
+            parent_depth = call_depth.get()
+            current_depth = parent_depth + 1
+            token_depth = call_depth.set(current_depth)
+
             start_time = time.perf_counter()
             call_args = _format_call_args(func, args, kwargs)
             _log_entry(
@@ -368,7 +424,8 @@ def trace(
                 class_name,
                 True,
                 call_args,
-                location,  # Pass location (filename:lineno)
+                location,
+                current_depth,  # Pass depth
             )
             try:
                 result = await func(*args, **kwargs)
@@ -381,11 +438,13 @@ def trace(
                     class_name,
                     True,
                     elapsed,
-                    location,  # Pass location (filename:lineno)
+                    location,
+                    current_depth,  # Pass depth
                 )
                 return result
             except Exception as e:
                 elapsed = time.perf_counter() - start_time
+                # Log the error using the helper function
                 _log_error(
                     logger,
                     func_name,
@@ -395,21 +454,30 @@ def trace(
                     elapsed,
                     e,
                     call_args,
+                    current_depth,
                 )
-                raise
+                raise  # Re-raise the original exception
             finally:
-                current_function_context.reset(token)
+                call_depth.reset(token_depth)
+                current_function_context.reset(token_func_context)
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            parent_context = current_function_context.get()
+            # --- Context Management ---
+            parent_func_context = current_function_context.get()
             current_ctx_name = f"{class_name}.{func_name}" if class_name else func_name
             full_context = (
-                f"{parent_context} -> {current_ctx_name}"
-                if parent_context
+                f"{parent_func_context} -> {current_ctx_name}"
+                if parent_func_context
                 else current_ctx_name
             )
-            token = current_function_context.set(full_context)
+            token_func_context = current_function_context.set(full_context)
+
+            # --- Depth Management ---
+            parent_depth = call_depth.get()
+            current_depth = parent_depth + 1
+            token_depth = call_depth.set(current_depth)
+
             start_time = time.perf_counter()
             call_args = _format_call_args(func, args, kwargs)
             _log_entry(
@@ -420,7 +488,8 @@ def trace(
                 class_name,
                 False,
                 call_args,
-                location,  # Pass location (filename:lineno)
+                location,
+                current_depth,  # Pass depth
             )
             try:
                 result = func(*args, **kwargs)
@@ -433,11 +502,13 @@ def trace(
                     class_name,
                     False,
                     elapsed,
-                    location,  # Pass location (filename:lineno)
+                    location,
+                    current_depth,  # Pass depth
                 )
                 return result
             except Exception as e:
                 elapsed = time.perf_counter() - start_time
+                # Log the error using the helper function
                 _log_error(
                     logger,
                     func_name,
@@ -447,10 +518,12 @@ def trace(
                     elapsed,
                     e,
                     call_args,
+                    current_depth,
                 )
-                raise
+                raise  # Re-raise the original exception
             finally:
-                current_function_context.reset(token)
+                call_depth.reset(token_depth)
+                current_function_context.reset(token_func_context)
 
         return async_wrapper if is_async else sync_wrapper
 

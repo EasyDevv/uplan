@@ -58,10 +58,10 @@ class LLMService:
         """
         self._request_id += 1
         stream_id = f"llm_stream_{self._request_id}"
-        logger.info(
-            f"Processing LLM request, creating stream: {stream_id}",
-            extra={"stream_id": stream_id, "request_id": self._request_id},
-        )
+        # logger.info(
+        #     f"Processing LLM request, creating stream: {stream_id}",
+        #     extra={"stream_id": stream_id, "request_id": self._request_id},
+        # )
         stream = self.stream_service.create_stream(stream_id)
 
         # Define the handler within the scope where 'stream' is available
@@ -69,10 +69,10 @@ class LLMService:
             # logger.debug(f"Pushing chunk to stream {stream_id}", extra={"stream_id": stream_id}) # Can be noisy
             await stream.push(text)
 
-        logger.debug(
-            f"Creating asyncio task for LLM process for stream {stream_id}",
-            extra={"stream_id": stream_id},
-        )
+        # logger.debug(
+        #     f"Creating asyncio task for LLM process for stream {stream_id}",
+        #     extra={"stream_id": stream_id},
+        # )
         self._current_task = asyncio.create_task(
             self._run_llm_process(
                 stream, stream_handler, stream_id
@@ -94,10 +94,10 @@ class LLMService:
             stream_handler: Callback for handling streaming updates
             stream_id: The ID of the stream being processed (for logging)
         """
-        logger.info(
-            f"Starting LLM process for stream {stream_id}",
-            extra={"stream_id": stream_id},
-        )
+        # logger.info(
+        #     f"Starting LLM process for stream {stream_id}",
+        #     extra={"stream_id": stream_id},
+        # )
         try:
             # Reset state specific to this run
             await self._reset_state()  # Reset state at the beginning of the run
@@ -134,15 +134,15 @@ class LLMService:
                 self.state.error_message = "Internal error: Stream controller missing."
                 raise AttributeError(error_msg)
 
-            logger.debug(
-                f"Calling get_all for stream {stream_id}",
-                extra={
-                    "stream_id": stream_id,
-                    "input": self.state.input_path,
-                    "output": self.state.output_path,
-                    "model": self.state.model,
-                },
-            )
+            # logger.debug(
+            #     f"Calling get_all for stream {stream_id}",
+            #     extra={
+            #         "stream_id": stream_id,
+            #         "input": self.state.input_path,
+            #         "output": self.state.output_path,
+            #         "model": self.state.model,
+            #     },
+            # )
             try:
                 # Assuming get_all is an async function
                 results = await self.state.stream_controller.run_cancellable(
@@ -161,14 +161,14 @@ class LLMService:
                     if isinstance(results, tuple) and len(results) == 2
                     else ({}, {})
                 )
-                logger.info(
-                    f"get_all completed for stream {stream_id}",
-                    extra={
-                        "stream_id": stream_id,
-                        "plan_status": plan_response.get("status"),
-                        "todo_status": todo_response.get("status"),
-                    },
-                )
+                # logger.info(
+                #     f"get_all completed for stream {stream_id}",
+                #     extra={
+                #         "stream_id": stream_id,
+                #         "plan_status": plan_response.get("status"),
+                #         "todo_status": todo_response.get("status"),
+                #     },
+                # )
 
             except asyncio.CancelledError:
                 logger.warning(
@@ -227,10 +227,10 @@ class LLMService:
             if not self.state.error_message:
                 self.state.error_message = f"Unexpected Error: {str(e)}"
         finally:
-            logger.info(
-                f"Finishing LLM process for stream {stream_id}. Resetting processing flag.",
-                extra={"stream_id": stream_id},
-            )
+            # logger.info(
+            #     f"Finishing LLM process for stream {stream_id}. Resetting processing flag.",
+            #     extra={"stream_id": stream_id},
+            # )
             self.state.processing = False
             self._current_task = None
             # Ensure stream is completed regardless of success or failure
@@ -246,9 +246,9 @@ class LLMService:
     async def cancel_current_request(self) -> None:
         """Cancels the currently running LLM process task."""
         if self._current_task and not self._current_task.done():
-            logger.info(
-                f"Attempting to cancel current LLM task (ID: {self._current_task.get_name()})"
-            )
+            # logger.info(
+            #     f"Attempting to cancel current LLM task (ID: {self._current_task.get_name()})"
+            # )
             self._current_task.cancel()
             try:
                 # Wait briefly for cancellation to propagate

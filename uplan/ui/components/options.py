@@ -220,7 +220,10 @@ def create_options(
                 stream_display_container = storage.get("stream_display")
 
                 if not stream_display_container:
-                    logger.error("Stream display container not found in page storage.")
+                    logger.error(
+                        "Stream display container not found in page storage.",
+                        exc_info=True,
+                    )
                     ui.notify("Stream display area not found", type="warning")
                     return
                 if not stream_service:
@@ -236,7 +239,7 @@ def create_options(
                     )
                     return
 
-                logger.info(f"Connecting UI to stream {stream_id} for {operation_type}")
+                # logger.info(f"Connecting UI to stream {stream_id} for {operation_type}")
 
                 # Create the UI element within the container to display the stream
                 # This assumes the container is a NiceGUI element where children can be added.
@@ -284,13 +287,13 @@ def create_options(
                     ui.notify("Required services are unavailable.", type="negative")
                     return
 
-                logger.info(
-                    "Processing operation",
-                    extra={
-                        "operation_type": operation_type,
-                        "display_name": display_name,
-                    },
-                )
+                # logger.info(
+                #     "Processing operation",
+                #     extra={
+                #         "operation_type": operation_type,
+                #         "display_name": display_name,
+                #     },
+                # )
                 try:
                     loading_indicator.classes(remove="hidden")  # Show spinner
 
@@ -309,7 +312,7 @@ def create_options(
                     stream_id = await llm_service.process_request()
 
                     if stream_id:
-                        logger.info(f"Stream ID received: {stream_id}")
+                        # logger.info(f"Stream ID received: {stream_id}")
                         # Connect the stream to the UI
                         await connect_to_stream(stream_id, display_name)
                     else:
@@ -343,7 +346,9 @@ def create_options(
             def on_stop_click() -> None:
                 """Handle stop button click using StreamService."""
                 if not stream_service:
-                    logger.error("StreamService not available to stop streams.")
+                    logger.error(
+                        "StreamService not available to stop streams.", exc_info=True
+                    )
                     ui.notify("Streaming service is unavailable.", type="negative")
                     return
 
