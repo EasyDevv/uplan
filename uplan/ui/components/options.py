@@ -28,7 +28,7 @@ def create_options(
         questions_update_trigger: Optional callable to trigger question updates.
     """
     # Initialize services and state
-    state = AppState()  # Keep state for now, services might need it
+    state = AppState()  # Use singleton AppState to sync with services
     option_service = OptionService()  # Instantiate OptionService directly
     # Retrieve LLM and Stream services (assuming they are registered in app startup)
     # If not registered, they might need to be instantiated here, potentially passing state

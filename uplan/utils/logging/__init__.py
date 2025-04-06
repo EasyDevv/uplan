@@ -9,12 +9,13 @@ from .logging_config import (
     LOGGER_NAME,
 )
 
-from .logging_trace import trace
+from .trace import trace, LogContext
 
 __all__ = [
     "get_logger",
-    "setup_logging",  # 필요에 따라 설정 함수도 내보낼 수 있음
+    "setup_logging",
     "trace",
+    "LogContext",
     "CONSOLE_LOG_LEVEL",
     "DEFAULT_LOG_LEVEL",
     "FILE_LOG_FORMAT",

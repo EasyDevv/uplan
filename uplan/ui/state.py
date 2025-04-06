@@ -11,25 +11,31 @@ from uplan.utils.stream import StreamController
 
 @dataclass
 class AppState:
-    """Single source of truth for application state.
+    """Singleton class for global application state.
 
-    Implements the singleton pattern to ensure only one state instance exists.
-    Provides reactive updates through a callback system.
+    This class enforces a strict singleton pattern:
+    - Any call to `AppState()` always returns the same instance.
+    - Use this class to store and share all UI and service state across the app.
+    - Designed for reactive updates with callback support.
+
+    This guarantees consistent, shared state throughout the application lifecycle.
     """
 
-    # Singleton instance
     _instance: ClassVar[Optional["AppState"]] = None
 
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     # Model and execution configuration
-    provider: Optional[str] = None  # Added provider
-    model: Optional[str] = (
-        None  # Changed default to None, will be set by UI/OptionService
-    )
-    category: Optional[str] = None  # Added category
-    input_path: Optional[str] = None  # Changed default to None
-    output_path: Optional[str] = None  # Changed default to None
-    max_retries: Optional[int] = 5  # Added max_retries (renamed from retry for clarity)
-    operation_type: Optional[str] = None  # Added operation_type
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    category: Optional[str] = None
+    input_path: Optional[str] = None
+    output_path: Optional[str] = None
+    max_retries: Optional[int] = 5
+    operation_type: Optional[str] = None
 
     # Processing state
     processing: bool = False
@@ -41,25 +47,6 @@ class AppState:
 
     # Response data
     llm_response: Dict = field(default_factory=dict)
-
-    # UI state data
-    def to_dict(self) -> dict:
-        """Convert the AppState instance to a dictionary."""
-        return {
-            "provider": self.provider,
-            "model": self.model,
-            "category": self.category,
-            "input_path": self.input_path,
-            "output_path": self.output_path,
-            "max_retries": self.max_retries,
-            "operation_type": self.operation_type,
-            "processing": self.processing,
-            "error_message": self.error_message,
-            "current_task": self.current_task,
-            "stream_controller": self.stream_controller,
-            "llm_response": self.llm_response,
-            "form_data": self.form_data,
-        }
 
     form_data: Dict = field(default_factory=dict)
 
@@ -81,6 +68,24 @@ class AppState:
         if cls._instance is None:
             cls._instance = AppState()
         return cls._instance
+
+    def to_dict(self) -> dict:
+        """Convert the AppState instance to a dictionary."""
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "category": self.category,
+            "input_path": self.input_path,
+            "output_path": self.output_path,
+            "max_retries": self.max_retries,
+            "operation_type": self.operation_type,
+            "processing": self.processing,
+            "error_message": self.error_message,
+            "current_task": self.current_task,
+            "stream_controller": self.stream_controller,
+            "llm_response": self.llm_response,
+            "form_data": self.form_data,
+        }
 
     def register_callback(
         self, key: str, callback: Callable[["AppState"], None]
