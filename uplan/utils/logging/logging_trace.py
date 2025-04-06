@@ -242,9 +242,8 @@ def _log_error(
         last_frame = extracted_tb[-1]
         # 경로를 조금 더 짧게 표시할 수 있음 (예: 프로젝트 루트 기준 상대 경로)
         try:
-            precise_location = (
-                f"{Path(last_frame.filename).name}:{last_frame.lineno}"  # 파일명만 표시
-            )
+            p = Path(last_frame.filename)
+            precise_location = f"{p.parent.name}/{p.name}:{last_frame.lineno}"  # 상위 폴더/파일명:라인번호
         except Exception:
             precise_location = (
                 f"{last_frame.filename}:{last_frame.lineno}"  # 실패 시 전체 경로
@@ -283,8 +282,8 @@ def _log_error(
     message_parts = [
         f"{error_prefix}{depth_str} 🟥 [bold red]Error[/] in {sync_async} {colored_name} after {elapsed:.4f}s",
         f"{child_prefix_error}Args:",
-        f"[{color}]{args_json_str}[/]",  # Args JSON 부분에 색상 적용?
-        # args_json_str, # 색상 없이
+        # f"[{color}]{args_json_str}[/]",  # Args JSON 부분에 색상 적용?
+        args_json_str,  # 색상 없이
         f"{child_prefix_error}Location: {colored_location}",
         f"{child_prefix_error}[bold red]{type(exception).__name__}:[/] [red]{exception}[/]",
     ]
@@ -423,7 +422,8 @@ def trace(
             filename = inspect.getfile(func)
             lines, lineno = inspect.getsourcelines(func)
             # 경로 단축 (예: 프로젝트 루트 기준) - 필요시 구현
-            location = f"{Path(filename).name}:{lineno}"  # 파일명만 사용
+            p = Path(filename)
+            location = f"{p.parent.name}/{p.name}:{lineno}"  # 상위 폴더/파일명:라인번호
         except (OSError, TypeError, IOError):
             location = module_name  # 실패 시 모듈 이름 사용
 
