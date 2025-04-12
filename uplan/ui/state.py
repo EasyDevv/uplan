@@ -3,7 +3,6 @@
 This module implements a reactive singleton state pattern for the application.
 """
 
-import logging
 from dataclasses import dataclass, field
 from typing import Dict, Optional, ClassVar, Callable
 from uplan.utils.stream import StreamController
@@ -127,7 +126,6 @@ class AppState:
 
     def reset_processing(self) -> None:
         """Reset processing state completely."""
-        logging.debug("Resetting processing state")
         self.processing = False
         self.error_message = None
         self.stream_controller.reset()

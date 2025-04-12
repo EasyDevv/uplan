@@ -2,12 +2,11 @@
 
 from pathlib import Path
 from typing import Optional, Callable
-from venv import logger  # Removed List, added imports for services
 
 from nicegui import ui, app
 
 from uplan.config import INPUT_BASE_DIR, OUTPUT_BASE_DIR
-from uplan.utils.logging import trace
+from pyhunt import trace
 from uplan.ui.state import AppState
 
 # Import services
@@ -248,8 +247,6 @@ def create_options(
                         "LLM or Stream service not available for processing."
                     )
 
-                    # logger.info(
-                    #     "Processing operation",
                     #     extra={
                     #         "operation_type": operation_type,
                     #         "display_name": display_name,
@@ -270,8 +267,6 @@ def create_options(
                     state.max_retries = retry_input.value
                     state.operation_type = operation_type  # Set the specific operation
 
-                    # logger.warning(
-                    #     state.input_path,
                     # )
 
                     # Call LLMService to process the request (which uses the state)

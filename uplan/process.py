@@ -18,15 +18,9 @@ from uplan.utils.display import (
     display_json_panel,
     display_text_panel,
 )
-from uplan.utils.logging import (
-    get_logger,
-    trace,
-)
+from pyhunt import trace
 from uplan.utils.stream import StreamController
 from uplan.utils.text import dict_to_xml, extract_code_block, optimize_for_prompt
-
-# Initialize logger
-logger = get_logger()
 
 
 @trace
@@ -45,10 +39,7 @@ async def run(
     **litellm_kwargs,
 ) -> dict:
     """Run LLM inference with streaming support."""
-    logger.info(
-        "Starting LLM inference",
-        extra={"model": model, "prompt_title": prompt_title},
-    )
+
     display_json_panel(prompt, title=prompt_title, border_style="green")
 
     optimized_prompt = dict_to_xml(prompt)
@@ -94,22 +85,9 @@ async def run(
 
             # Check if cancelled before starting
             if controller.stop_requested:
-                logger.info(
-                    "Processing cancelled before LLM request",
-                    extra={"event_type": "processing_cancelled"},
-                )
                 return stop_response
 
             # Create task and wrap with controller
-            logger.debug(
-                f"Sending request to LLM (attempt {attempt}/{max_retries})",
-                extra={
-                    "event_type": "llm_request",
-                    "attempt": attempt,
-                    "model": model,
-                    "stream": stream,
-                },
-            )
 
             response_llm = litellm.acompletion(
                 model=model,
@@ -151,16 +129,6 @@ async def run(
             with open(output_file, "wb") as f:
                 tomli_w.dump(json_block, f)
 
-            logger.info(
-                f"Successfully processed {prompt_title}",
-                extra={
-                    "event_type": "llm_success",
-                    "output_file": output_file,
-                    "attempt": attempt,
-                    "response_size": len(json.dumps(json_block)),
-                },
-            )
-
             return {"status": "success", "data": json_block, "output_file": output_file}
 
         except json.JSONDecodeError as e:
@@ -170,22 +138,10 @@ async def run(
                 f"Error during LLM processing on attempt {attempt}: {type(e).__name__}"
             )
 
-        if attempt < max_retries:
-            logger.warning(
-                f"Retrying LLM request (attempt {attempt}/{max_retries})",
-                extra={
-                    "event_type": "llm_retry",
-                    "attempt": attempt,
-                    "max_retries": max_retries,
-                },
-            )
-            display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
+    #     if attempt < max_retries:
+    #         display_text_panel(text=f"Retrying ({attempt}/{max_retries})...")
 
-    logger.error(
-        f"Failed to process {prompt_title} after {max_retries} attempts",
-        extra={"event_type": "llm_max_retries", "max_retries": max_retries},
-    )
-    display_text_panel(text=f"Failed to process response after {max_retries} attempts.")
+    # display_text_panel(text=f"Failed to process response after {max_retries} attempts.")
     raise Exception("Max retries exceeded")
 
 
@@ -212,10 +168,6 @@ async def get_plan(
     Returns:
         dict: Response containing status and generated plan data
     """
-    logger.info(
-        "Starting plan generation process",
-        extra={"model": model, "retry": retry},
-    )
 
     try:
         response = await run(
@@ -228,15 +180,9 @@ async def get_plan(
             stream_handler=stream_handler,
             **litellm_kwargs,
         )
-        logger.info(
-            "Plan generation completed",
-            extra={
-                "output_file": str(output_folder / "plan.toml"),
-            },
-        )
         return response
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise RuntimeError(f"Plan generation failed: {e}")
 
 
 @trace
@@ -249,10 +195,6 @@ async def get_todo(
     **litellm_kwargs,
 ) -> dict:
     """Execute todo generation process."""
-    logger.info(
-        "Starting todo generation process",
-        extra={"model": model, "retry": retry},
-    )
 
     try:
         response = await run(
@@ -277,16 +219,6 @@ async def get_todo(
         with open(output_folder / "todo.json", "w", encoding="utf-8") as f:
             json.dump(json_dict, f, indent=2, ensure_ascii=False)
 
-        logger.info(
-            "Todo generation completed",
-            extra={
-                "output_files": [
-                    str(output_folder / "todo.toml"),
-                    str(output_folder / "todo.md"),
-                    str(output_folder / "todo.json"),
-                ],
-            },
-        )
         return response
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -310,38 +242,14 @@ def prepare_todo(input_folder: Path, output_folder: Path) -> dict:
     todo_file = input_folder / "todo.toml"
     plan_file = output_folder / "plan.toml"
 
-    logger.debug(
-        "Preparing todo data by merging files",
-        extra={
-            "event_type": "prepare_todo",
-            "todo_file": str(todo_file),
-            "plan_file": str(plan_file),
-        },
-    )
-
     try:
         with open(todo_file, "rb") as f:
             todo = tomllib.load(f)
         with open(plan_file, "rb") as f:
             plan = tomllib.load(f)
 
-        logger.debug(
-            "Successfully loaded todo and plan files",
-            extra={
-                "event_type": "todo_plan_loaded",
-                "todo_keys": list(todo.keys()),
-                "plan_keys": list(plan.keys()),
-            },
-        )
     except FileNotFoundError as e:
-        logger.error(
-            "Failed to read required TOML files",
-            extra={
-                "event_type": "todo_prepare_error",
-                "error_type": "FileNotFoundError",
-                "missing_file": str(e).split(":")[-1].strip(),
-            },
-        )
+        raise e
 
     todo.update({"plan": plan})
     return todo
@@ -353,26 +261,9 @@ def prepare_answers(input_folder: Path) -> dict:
     try:
         with open(plan_file, "rb") as f:
             answers_data = tomllib.load(f)
-        logger.debug(
-            f"Successfully loaded plan from {plan_file}",
-            extra={"plan_file": str(plan_file), "event_type": "plan_loaded"},
-        )
         return answers_data
-    except FileNotFoundError:
-        logger.error(
-            f"Required configuration file not found: {plan_file}",
-            extra={"error_type": "FileNotFoundError", "file_path": str(plan_file)},
-        )
-    except tomllib.TOMLDecodeError:
-        logger.error(
-            f"Invalid TOML format in file: {plan_file}",
-            extra={"error_type": "TOMLDecodeError", "file_path": str(plan_file)},
-        )
     except Exception as e:
-        logger.exception(
-            f"Unexpected error loading plan file: {type(e).__name__}",
-            extra={"error_type": type(e).__name__, "plan_file": str(plan_file)},
-        )
+        raise e
 
 
 @trace
@@ -385,15 +276,6 @@ async def get_all(
     **litellm_kwargs,
 ) -> Tuple[dict, dict]:
     """Generate both plan and todo documents in sequence with streaming support."""
-    logger.info(
-        "Starting combined plan and todo generation",
-        extra={
-            "model": model,
-            "retry": retry,
-            "input_folder": str(input_folder),
-            "output_folder": str(output_folder),
-        },
-    )
 
     # Generate plan first
     answers_data = prepare_answers(input_folder)
@@ -406,18 +288,11 @@ async def get_all(
         **litellm_kwargs,
     )
     if plan_response.get("status") in ["exit", "error", "stopped"]:
-        logger.warning(
-            "Plan generation stopped or failed",
-            extra={"status": plan_response.get("status")},
-        )
         return plan_response, {"status": "skipped"}
 
     # Check if streaming was stopped during plan generation
     state = AppState.get_instance()
     if state.stop_requested:
-        logger.info(
-            "Processing stopped by user during plan generation",
-        )
         return plan_response, {"status": "stopped"}
 
     # Generate todo using the created plan
@@ -431,11 +306,4 @@ async def get_all(
         **litellm_kwargs,
     )
 
-    logger.info(
-        "Combined generation completed",
-        extra={
-            "plan_status": plan_response.get("status"),
-            "todo_status": todo_response.get("status"),
-        },
-    )
     return plan_response, todo_response

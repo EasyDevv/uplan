@@ -6,7 +6,7 @@ from nicegui import ui, app  # Removed events
 
 from uplan.config import INPUT_BASE_DIR  # Import config constant
 from uplan.utils.data import load_toml_file
-from uplan.utils.logging import trace
+from pyhunt import trace
 
 
 def create_question_card(field_name: str, field_data: dict, store: dict) -> None:

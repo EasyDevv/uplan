@@ -19,8 +19,6 @@ dependencies = [
     "tomli-w>=1.2.0",
     "click",
     "nicegui>=2.13.0",
-    "pytest-playwright>=0.7.0",
-    "pytest-asyncio>=0.25.3",
 ]
 dynamic = ["version"]
 
@@ -45,3 +43,6 @@ testpaths = ["tests"]
 markers = [
     "e2e: marks tests as end-to-end tests (deselect with '-m \"not e2e\"')",
 ]
+
+[tool.uv.sources]
+pyhunt = { path = "../../Public/pyhunt" }

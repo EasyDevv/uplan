@@ -10,7 +10,7 @@ from nicegui import ui, app  # Import app to potentially access services if need
 # from uplan.ui.state import AppState
 # Import the refactored StreamService
 from uplan.services.stream_service import StreamService
-from uplan.utils.logging import trace
+from pyhunt import trace
 
 # Removed ContentManager class as its functionality is now handled
 # by the simpler approach in options.py (one markdown element per stream).

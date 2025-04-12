@@ -6,9 +6,7 @@ from contextlib import suppress  # For cleaner task cancellation handling
 
 from uplan.utils.reactive import ReactiveStream
 from uplan.utils.stream import StreamController
-from uplan.utils.logging import get_logger, trace
-
-logger = get_logger()
+from pyhunt import trace
 
 
 class StreamService:
@@ -31,15 +29,11 @@ class StreamService:
             TypeError: If stream_controller is not an instance of StreamController.
         """
         if not isinstance(stream_controller, StreamController):
-            logger.error(
-                f"StreamService initialized with invalid StreamController type: {type(stream_controller)}"
-            )
             raise TypeError("stream_controller must be an instance of StreamController")
 
         self.stream_controller = stream_controller
         self.active_streams: Dict[str, ReactiveStream] = {}
         self._current_stream_id: Optional[str] = None
-        logger.info("StreamService initialized.")
 
     @trace
     def create_stream(self, stream_id: str) -> ReactiveStream:
@@ -55,10 +49,6 @@ class StreamService:
             A reactive stream instance.
         """
         if stream_id in self.active_streams:
-            logger.warning(
-                f"Stream ID '{stream_id}' already exists. Completing the old stream before creating a new one.",
-                extra={"stream_id": stream_id},
-            )
             # Complete the existing stream cleanly
             self.stop_stream(stream_id)  # stop_stream handles removal from dict
 
@@ -83,10 +73,7 @@ class StreamService:
         """
         stream = self.active_streams.get(stream_id)
         if not stream:
-            logger.warning(
-                f"Attempted to get non-existent stream with ID: {stream_id}",
-                extra={"stream_id": stream_id},
-            )
+            pass
         return stream
 
     @trace
@@ -98,7 +85,6 @@ class StreamService:
         """
         if self._current_stream_id:
             return self.get_stream(self._current_stream_id)
-        logger.debug("No current stream ID available.")
         return None
 
     @trace
@@ -112,19 +98,12 @@ class StreamService:
             stream_id: The ID of the stream to stop.
         """
         if stream_id in self.active_streams:
-            logger.info(
-                f"Stopping and removing stream with ID: {stream_id}",
-                extra={"stream_id": stream_id},
-            )
             stream = self.active_streams.pop(stream_id)  # Remove from dict first
             stream.complete()  # Signal completion to subscribers
             if self._current_stream_id == stream_id:
                 self._current_stream_id = None  # Clear current if it was stopped
         else:
-            logger.warning(
-                f"Attempted to stop non-existent stream with ID: {stream_id}",
-                extra={"stream_id": stream_id},
-            )
+            pass
 
     @trace
     def stop_all_streams(self) -> None:
@@ -143,7 +122,6 @@ class StreamService:
         for stream_id in stream_ids:
             self.stop_stream(stream_id)  # Use stop_stream for consistent cleanup
 
-        logger.info("All active reactive streams have been completed.")
         self._current_stream_id = None  # Reset current stream ID
 
     # Note: Removed bind_to_ui_element method. UI binding is now the responsibility

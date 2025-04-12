@@ -7,10 +7,8 @@ from typing import Callable, Optional
 from uplan.process import get_all
 from uplan.ui.state import AppState
 from uplan.services.stream_service import StreamService
-from uplan.utils.logging import get_logger, trace
+from pyhunt import trace
 from uplan.utils.reactive import ReactiveStream
-
-logger = get_logger()
 
 
 class LLMService:

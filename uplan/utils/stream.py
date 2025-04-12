@@ -1,7 +1,6 @@
 """Centralized stream control utilities."""
 
 import asyncio
-import logging
 from typing import Optional, Callable, Set, Dict, Any
 
 
@@ -24,7 +23,6 @@ class StreamController:
         if self._stop_requested:
             return
 
-        logging.debug("Stream stop requested")
         self._stop_requested = True
 
         # Cancel all running tasks
@@ -37,7 +35,7 @@ class StreamController:
             try:
                 callback()
             except Exception as e:
-                logging.error(f"Error in stream stop callback: {e}")
+                raise e
 
     def reset(self) -> None:
         """Reset controller state."""
@@ -65,5 +63,4 @@ class StreamController:
         try:
             return await task
         except asyncio.CancelledError:
-            logging.debug("Task cancelled via StreamController")
             raise
