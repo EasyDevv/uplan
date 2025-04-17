@@ -1,0 +1,147 @@
+"""Application state management.
+
+This module implements a reactive singleton state pattern for the application.
+"""
+
+from dataclasses import dataclass, field
+from typing import Dict, Optional, ClassVar, Callable
+from uplan.utils.stream import StreamController
+
+
+@dataclass
+class AppState:
+    """Singleton class for global application state.
+
+    This class enforces a strict singleton pattern:
+    - Any call to `AppState()` always returns the same instance.
+    - Use this class to store and share all UI and service state across the app.
+    - Designed for reactive updates with callback support.
+
+    This guarantees consistent, shared state throughout the application lifecycle.
+    """
+
+    _instance: ClassVar[Optional["AppState"]] = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    # Model and execution configuration
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    category: Optional[str] = None
+    input_path: Optional[str] = None
+    output_path: Optional[str] = None
+    max_retries: Optional[int] = 5
+    operation_type: Optional[str] = None
+
+    # Processing state
+    processing: bool = False
+    error_message: Optional[str] = None
+    current_task: Optional[Callable] = None
+
+    # Stream controller for managing streaming operations
+    stream_controller: StreamController = field(default_factory=StreamController)
+
+    # Response data
+    llm_response: Dict = field(default_factory=dict)
+
+    form_data: Dict = field(default_factory=dict)
+
+    # Event callbacks
+    _on_update_callbacks: Dict[str, Callable] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Initialize callback storage."""
+        if not hasattr(self, "_on_update_callbacks"):
+            self._on_update_callbacks = {}
+
+    @classmethod
+    def get_instance(cls) -> "AppState":
+        """Get or create the singleton instance.
+
+        Returns:
+            AppState: The singleton state instance
+        """
+        if cls._instance is None:
+            cls._instance = AppState()
+        return cls._instance
+
+    def to_dict(self) -> dict:
+        """Convert the AppState instance to a dictionary."""
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "category": self.category,
+            "input_path": self.input_path,
+            "output_path": self.output_path,
+            "max_retries": self.max_retries,
+            "operation_type": self.operation_type,
+            "processing": self.processing,
+            "error_message": self.error_message,
+            "current_task": self.current_task,
+            "stream_controller": self.stream_controller,
+            "llm_response": self.llm_response,
+            "form_data": self.form_data,
+        }
+
+    def register_callback(
+        self, key: str, callback: Callable[["AppState"], None]
+    ) -> None:
+        """Register a callback for state updates.
+
+        Args:
+            key: Unique identifier for the callback
+            callback: Function to call when state updates
+        """
+        self._on_update_callbacks[key] = callback
+
+    def unregister_callback(self, key: str) -> None:
+        """Remove a registered callback.
+
+        Args:
+            key: Identifier of callback to remove
+        """
+        self._on_update_callbacks.pop(key, None)
+
+    def update(self, **kwargs) -> None:
+        """Update state and trigger UI updates.
+
+        Args:
+            **kwargs: State attributes to update
+        """
+        # Update state attributes
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+        # Notify all registered callbacks
+        for callback in self._on_update_callbacks.values():
+            callback(self)
+
+    def clear_error(self) -> None:
+        """Clear any error state."""
+        self.error_message = None
+
+    def reset_processing(self) -> None:
+        """Reset processing state completely."""
+        self.processing = False
+        self.error_message = None
+        self.stream_controller.reset()
+
+        for callback in self._on_update_callbacks.values():
+            callback(self)
+
+    @property
+    def stop_streaming(self) -> bool:
+        """Backward compatibility for stop_streaming property."""
+        return self.stream_controller.stop_requested
+
+    @stop_streaming.setter
+    def stop_streaming(self, value: bool) -> None:
+        """Backward compatibility setter for stop_streaming."""
+        if value:
+            self.stream_controller.request_stop()
+        else:
+            self.stream_controller.reset()
