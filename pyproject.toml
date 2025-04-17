@@ -1,6 +1,12 @@
 [build-system]
-requires = ["setuptools", "setuptools_scm"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["uplan"]
+
+[project.scripts]
+uplan = "uplan.main:main"
 
 [project]
 name = "uplan"
@@ -19,8 +25,9 @@ dependencies = [
     "tomli-w>=1.2.0",
     "click",
     "nicegui>=2.13.0",
+    "pyhunt>=1.1.0",
 ]
-dynamic = ["version"]
+version = "1.0.4"
 
 [dependency-groups]
 dev = ["arel", "pytest-playwright"]
@@ -28,21 +35,8 @@ dev = ["arel", "pytest-playwright"]
 [project.urls]
 source = "https://github.com/easydevv/uplan"
 
-[project.scripts]
-uplan = "uplan.main:main"
-
-[tool.setuptools]
-packages = ["uplan"]
-
-[tool.setuptools_scm]
-version_scheme = "post-release"
-local_scheme = "no-local-version"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "e2e: marks tests as end-to-end tests (deselect with '-m \"not e2e\"')",
 ]
-
-[tool.uv.sources]
-pyhunt = { path = "../../Public/pyhunt" }
