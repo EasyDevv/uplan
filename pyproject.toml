@@ -25,7 +25,7 @@ dependencies = [
     "tomli-w>=1.2.0",
     "click",
     "nicegui>=2.13.0",
-    "pyhunt>=1.1.0",
+    "pyhunt",
 ]
 version = "1.0.4"
 

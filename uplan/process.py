@@ -40,13 +40,13 @@ async def run(
 ) -> dict:
     """Run LLM inference with streaming support."""
 
-    display_json_panel(prompt, title=prompt_title, border_style="green")
+    # display_json_panel(prompt, title=prompt_title, border_style="green")
 
     optimized_prompt = dict_to_xml(prompt)
     optimized_prompt = optimize_for_prompt(optimized_prompt)
 
-    if debug:
-        display_text_panel(optimized_prompt, title=prompt_title, border_style="green")
+    # if debug:
+    #     display_text_panel(optimized_prompt, title=prompt_title, border_style="green")
 
     # Get controller from AppState if not provided
     controller = stream_controller or AppState.get_instance().stream_controller
@@ -262,6 +262,7 @@ def prepare_answers(input_folder: Path) -> dict:
         with open(plan_file, "rb") as f:
             answers_data = tomllib.load(f)
         return answers_data
+
     except Exception as e:
         raise e
 
@@ -279,6 +280,7 @@ async def get_all(
 
     # Generate plan first
     answers_data = prepare_answers(input_folder)
+
     plan_response = await get_plan(
         output_folder=output_folder,
         model=model,

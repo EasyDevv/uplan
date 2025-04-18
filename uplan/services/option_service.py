@@ -84,7 +84,7 @@ class OptionService:
                     [item.name for item in input_base_path.iterdir() if item.is_dir()]
                 )
             except OSError as e:
-                pass
+                raise e
         else:
             pass
 

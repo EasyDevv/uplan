@@ -5,7 +5,6 @@ import shutil
 import tomllib
 from pathlib import Path
 
-#
 # Use aiofiles for async file operations where appropriate (though less needed here now)
 # import aiofiles
 from uplan.models.todo import TodoModel
@@ -13,8 +12,6 @@ from uplan.services.litellm_service import (  # Import from the new service
     update_litellm_models,
 )
 from pyhunt import trace
-
-#
 
 # --- Configuration Paths ---
 # Keep paths relevant to this module's responsibilities

@@ -142,9 +142,7 @@ class LLMService:
             }
 
         except Exception as e:
-            raise RuntimeError(
-                f"Unhandled error in LLM process for stream {stream_id}: {e}"
-            )
+            raise e
         finally:
             self.state.processing = False
             self._current_task = None
@@ -163,9 +161,7 @@ class LLMService:
             except asyncio.TimeoutError:
                 raise asyncio.TimeoutError("LLM task did not cancel within timeout.")
             except Exception as e:
-                raise RuntimeError(
-                    f"Error encountered while waiting for LLM task cancellation: {e}"
-                )
+                raise e
             finally:
                 await self._reset_state()
                 self._current_task = None

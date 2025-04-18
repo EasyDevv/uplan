@@ -247,12 +247,6 @@ def create_options(
                         "LLM or Stream service not available for processing."
                     )
 
-                    #     extra={
-                    #         "operation_type": operation_type,
-                    #         "display_name": display_name,
-                    pass
-                #     },
-                # )
                 try:
                     loading_indicator.classes(remove="hidden")  # Show spinner
 
@@ -278,9 +272,7 @@ def create_options(
                         raise RuntimeError("No stream ID returned from LLM service.")
 
                 except Exception as e:
-                    raise RuntimeError(
-                        f"Error during '{display_name}' operation: {e}"
-                    ) from e
+                    raise e
                 finally:
                     loading_indicator.classes(add="hidden")  # Hide spinner
 
